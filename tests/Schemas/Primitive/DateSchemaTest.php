@@ -766,6 +766,14 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Date too early', $result->issues[0]->message);
   }
 
+  public function test_min_WithValueLessThanMin_ShouldDescribeInclusiveBoundInDefaultMessage(): void {
+    $schema = (new DateSchema())->min(self::utc('2024-01-15'));
+
+    $result = $schema->safeParse(self::utc('2024-01-14'));
+
+    $this->assertSame('Must be on or after 2024-01-15T00:00:00+00:00', $result->issues[0]->message);
+  }
+
   public function test_max_WithValueLessThanMax_ShouldPass(): void {
     $schema = (new DateSchema())->max(self::utc('2024-01-15'));
 
@@ -796,6 +804,14 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(self::utc('2024-02-01'));
 
     $this->assertSame('Date too late', $result->issues[0]->message);
+  }
+
+  public function test_max_WithValueGreaterThanMax_ShouldDescribeInclusiveBoundInDefaultMessage(): void {
+    $schema = (new DateSchema())->max(self::utc('2024-01-15'));
+
+    $result = $schema->safeParse(self::utc('2024-01-16'));
+
+    $this->assertSame('Must be on or before 2024-01-15T00:00:00+00:00', $result->issues[0]->message);
   }
 
   // between

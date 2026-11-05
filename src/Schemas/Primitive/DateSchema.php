@@ -96,12 +96,30 @@ final class DateSchema extends CoercibleSchema {
     return $clone;
   }
 
+  /**
+   * Limite inclusivo (>=), como `NumberSchema::min`; `after` é o estrito.
+   */
   public function min(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
-    return $this->after($min, $message);
+    return $this->addRule(new Rule(
+      name: 'min',
+      code: 'too_early',
+      check: static fn(DateTimeImmutable $value, array $params): bool => $value >= $params['min'],
+      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be on or after {$params['min']->format(DateTimeInterface::ATOM)}",
+      params: ['min' => $this->normalizeDate($min)]
+    ));
   }
 
+  /**
+   * Limite inclusivo (<=), como `NumberSchema::max`; `before` é o estrito.
+   */
   public function max(DateTimeInterface|string|int $max, string|Closure|null $message = null): static {
-    return $this->before($max, $message);
+    return $this->addRule(new Rule(
+      name: 'max',
+      code: 'too_late',
+      check: static fn(DateTimeImmutable $value, array $params): bool => $value <= $params['max'],
+      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be on or before {$params['max']->format(DateTimeInterface::ATOM)}",
+      params: ['max' => $this->normalizeDate($max)]
+    ));
   }
 
   public function after(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
