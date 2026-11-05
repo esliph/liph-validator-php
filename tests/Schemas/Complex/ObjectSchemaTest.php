@@ -750,6 +750,23 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['x'], $result->issues[0]->path);
   }
 
+  public function test_extend_WithIntegerKeys_ShouldPreserveKeys(): void {
+    $schema = (new ObjectSchema([10 => new StringSchema()]))->extend([20 => new IntegerSchema()]);
+
+    $result = $schema->safeParse((object) [10 => 'a', 20 => 1]);
+
+    $this->assertTrue($result->success);
+    $this->assertSame(['10' => 'a', '20' => 1], (array) $result->data);
+  }
+
+  public function test_extend_WithExistingKey_ShouldKeepOriginalPosition(): void {
+    $schema = $this->createUserSchema()->extend(['name' => new StringSchema()]);
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30]);
+
+    $this->assertSame(['name', 'age'], array_keys((array) $result->data));
+  }
+
   public function test_extend_ShouldNotModifyOriginalSchema(): void {
     $base = $this->createUserSchema();
 

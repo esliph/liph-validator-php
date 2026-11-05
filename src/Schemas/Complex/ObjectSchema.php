@@ -172,7 +172,7 @@ final class ObjectSchema extends CoercibleSchema {
    */
   public function extend(array $shape): static {
     $clone = clone $this;
-    $clone->shape = array_merge($this->shape, $shape);
+    $clone->shape = array_replace($this->shape, $shape);
 
     return $clone;
   }
