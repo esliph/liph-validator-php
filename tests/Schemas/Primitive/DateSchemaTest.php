@@ -322,14 +322,23 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithOverflowingDayOfMonth_ShouldRollOverToNextMonth(): void {
+  public function test_coerce_WithOverflowingDayOfMonth_ShouldFailWithInvalidDate(): void {
     $schema = (new DateSchema())->coerce();
 
     $result = $schema->safeParse('2024-02-30');
 
-    // Comportamento atual (suspeito): o PHP aceita e normaliza para 2024-03-01.
+    // O PHP normalizaria para 2024-03-01 com um warning; o warning reprova a data.
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_date', $result->issues[0]->code);
+  }
+
+  public function test_coerce_WithLeapDay_ShouldParse(): void {
+    $schema = (new DateSchema())->coerce();
+
+    $result = $schema->safeParse('2024-02-29');
+
     $this->assertTrue($result->success);
-    $this->assertSame('2024-03-01', $result->data->format('Y-m-d'));
+    $this->assertSame('2024-02-29', $result->data->format('Y-m-d'));
   }
 
   public function test_coerce_WithFloat_ShouldFailWithInvalidType(): void {
@@ -437,14 +446,14 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
 
-  public function test_format_WithOverflowingDayOfMonth_ShouldRollOverToNextMonth(): void {
+  public function test_format_WithOverflowingDayOfMonth_ShouldFailWithInvalidDate(): void {
     $schema = (new DateSchema())->coerce()->format('!Y-m-d');
 
     $result = $schema->safeParse('2024-02-30');
 
-    // Comportamento atual (suspeito): createFromFormat aceita overflow e normaliza para 2024-03-01.
-    $this->assertTrue($result->success);
-    $this->assertSame('2024-03-01', $result->data->format('Y-m-d'));
+    // createFromFormat normalizaria para 2024-03-01 com um warning; o warning reprova a data.
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_date', $result->issues[0]->code);
   }
 
   public function test_format_WithoutCoerce_ShouldStillRejectStrings(): void {

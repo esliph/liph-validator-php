@@ -48,33 +48,38 @@ final class DateSchema extends CoercibleSchema {
       );
     }
 
-    try {
-      if ($this->format !== null) {
-        $date = DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone);
-
-        if ($date === false) {
-          return ParseResult::fail(
-            new Issue(
-              path: $path,
-              message: 'Invalid date string',
-              code: 'invalid_date'
-            )
-          );
-        }
-
-        return ParseResult::ok($date);
-      }
-
-      return ParseResult::ok(new DateTimeImmutable($value, $this->timezone));
-    } catch (Exception) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Invalid date string',
-          code: 'invalid_date'
-        )
-      );
+    // Em branco, o construtor devolveria o instante atual.
+    if (trim($value) === '') {
+      return $this->invalidDate($path);
     }
+
+    try {
+      $date = $this->format !== null
+        ? DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone)
+        : new DateTimeImmutable($value, $this->timezone);
+    } catch (Exception) {
+      return $this->invalidDate($path);
+    }
+
+    // Data impossível (ex.: 2024-02-30) só gera warning e seria normalizada para o mês seguinte.
+    if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
+      return $this->invalidDate($path);
+    }
+
+    return ParseResult::ok($date);
+  }
+
+  /**
+   * @param (string|int)[] $path
+   */
+  private function invalidDate(array $path): ParseResult {
+    return ParseResult::fail(
+      new Issue(
+        path: $path,
+        message: 'Invalid date string',
+        code: 'invalid_date'
+      )
+    );
   }
 
   public function format(string $format): static {
