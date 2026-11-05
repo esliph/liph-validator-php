@@ -110,4 +110,46 @@ class NumberSchemaTest extends NumberSchemaTestCase {
 
     $this->assertTrue($result->success);
   }
+
+  public function test_multipleOf_WithTenthDivisorAndFloatMultiple_ShouldPass(): void {
+    $schema = $this->createNumberSchema()->multipleOf(0.1);
+
+    $result = $schema->safeParse(0.3);
+
+    $this->assertTrue($result->success);
+  }
+
+  public function test_multipleOf_WithTenthDivisorAndNonMultiple_ShouldFail(): void {
+    $schema = $this->createNumberSchema()->multipleOf(0.1);
+
+    $result = $schema->safeParse(0.35);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('not_multiple', $result->issues[0]->code);
+  }
+
+  public function test_multipleOf_WithHalfDivisorAndNonMultiple_ShouldFail(): void {
+    $schema = $this->createNumberSchema()->multipleOf(0.5);
+
+    $result = $schema->safeParse(0.7);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('not_multiple', $result->issues[0]->code);
+  }
+
+  public function test_multipleOf_WithIntegerDivisorAndFloatNonMultiple_ShouldFail(): void {
+    $schema = $this->createNumberSchema()->multipleOf(5);
+
+    $result = $schema->safeParse(5.5);
+
+    $this->assertFalse($result->success);
+  }
+
+  public function test_multipleOf_WithInfinity_ShouldFail(): void {
+    $schema = $this->createNumberSchema()->multipleOf(5);
+
+    $result = $schema->safeParse(INF);
+
+    $this->assertFalse($result->success);
+  }
 }

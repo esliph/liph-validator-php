@@ -3,6 +3,7 @@
 namespace Esliph\Validator\Schemas\Primitive;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
@@ -11,6 +12,8 @@ use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 
 class NumberSchema extends CoercibleSchema {
+
+  private const float MULTIPLE_OF_TOLERANCE = 1e-9;
 
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
@@ -107,7 +110,18 @@ class NumberSchema extends CoercibleSchema {
     ));
   }
 
-  public function multipleOf(int|float $divisor, int $precision = 0, string|Closure|null $message = null): static {
+  /**
+   * Com operandos float, aceita o valor quando o quociente fica a menos de
+   * MULTIPLE_OF_TOLERANCE de um inteiro (0.3 é múltiplo de 0.1). Quocientes
+   * acima de ~1e7 podem dar falso negativo por perda de precisão do float.
+   *
+   * @throws InvalidArgumentException se o divisor não for finito e maior que zero
+   */
+  public function multipleOf(int|float $divisor, string|Closure|null $message = null): static {
+    if (!is_finite($divisor) || $divisor <= 0) {
+      throw new InvalidArgumentException('multipleOf divisor must be a finite number greater than 0');
+    }
+
     return $this->addRule(new Rule(
       name: 'multipleOf',
       code: 'not_multiple',
@@ -116,18 +130,16 @@ class NumberSchema extends CoercibleSchema {
           return $value % $params['divisor'] === 0;
         }
 
-        $scale = 10 ** $params['precision'];
+        if (!is_finite($value)) {
+          return false;
+        }
 
-        $scaledValue = (int) round($value * $scale);
-        $scaledDivisor = (int) round($params['divisor'] * $scale);
+        $quotient = $value / $params['divisor'];
 
-        return $scaledValue % $scaledDivisor === 0;
+        return abs($quotient - round($quotient)) < self::MULTIPLE_OF_TOLERANCE;
       },
       message: $message ?? static fn(int|float $value, array $params): string => "Must be a multiple of {$params['divisor']}",
-      params: [
-        'divisor' => $divisor,
-        'precision' => $precision
-      ]
+      params: ['divisor' => $divisor]
     ));
   }
 }

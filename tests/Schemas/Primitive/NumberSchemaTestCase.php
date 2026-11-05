@@ -8,7 +8,9 @@ use Esliph\Validator\Schemas\Primitive\NumberSchema;
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
@@ -309,6 +311,34 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame($customMessage, $result->issues[0]->message);
+  }
+
+  /**
+   * @return array<string, array{int|float}>
+   */
+  public static function provideInvalidDivisors(): array {
+    return [
+      'zero' => [0],
+      'float_zero' => [0.0],
+      'negative' => [-5],
+      'infinity' => [INF],
+      'nan' => [NAN],
+    ];
+  }
+
+  #[DataProvider('provideInvalidDivisors')]
+  public function test_multipleOf_WithNonPositiveOrNonFiniteDivisor_ShouldThrow(int|float $divisor): void {
+    $this->expectException(InvalidArgumentException::class);
+
+    $this->createNumberSchema()->multipleOf($divisor);
+  }
+
+  public function test_multipleOf_WithFractionalDivisorAndIntegerMultiple_ShouldPass(): void {
+    $schema = $this->createNumberSchema()->multipleOf(0.1);
+
+    $result = $schema->safeParse(3);
+
+    $this->assertTrue($result->success);
   }
 
   public function test_positive_WithPositiveValue_ShouldPass(): void {
