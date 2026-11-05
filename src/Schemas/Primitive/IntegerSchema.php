@@ -43,7 +43,7 @@ class IntegerSchema extends NumberSchema {
   }
 
   /**
-   * @param (string|int)[] $path
+   * @param string[] $path
    */
   private function parseFloat(float $value, array $path): ParseResult {
     if (!is_finite($value)) {
@@ -68,7 +68,7 @@ class IntegerSchema extends NumberSchema {
   }
 
   /**
-   * @param (string|int)[] $path
+   * @param string[] $path
    */
   private function outOfRangeIssue(array $path): ParseResult {
     return ParseResult::fail(

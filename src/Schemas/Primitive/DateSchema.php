@@ -70,7 +70,7 @@ final class DateSchema extends CoercibleSchema {
   }
 
   /**
-   * @param (string|int)[] $path
+   * @param string[] $path
    */
   private function invalidDate(array $path): ParseResult {
     return ParseResult::fail(

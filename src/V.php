@@ -45,7 +45,7 @@ final class V {
   }
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
    */
   public static function object(array $shape = []): ObjectSchema {
     return new ObjectSchema(shape: $shape);

@@ -40,7 +40,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @param (string|int)[] $path
+   * @param string[] $path
    */
   protected function nonFiniteIssue(float $value, array $path): ParseResult {
     return ParseResult::fail(

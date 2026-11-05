@@ -14,7 +14,7 @@ final class ObjectSchema extends CoercibleSchema {
   protected ?Schema $catchall = null;
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
    */
   public function __construct(
     protected array $shape = []
@@ -121,7 +121,7 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
    */
   public function shape(array $shape): static {
     $clone = clone $this;
@@ -168,7 +168,7 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
    */
   public function extend(array $shape): static {
     $clone = clone $this;
