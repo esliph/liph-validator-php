@@ -299,6 +299,18 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
+  public function test_coerce_WithUncoercibleString_ShouldReportOriginalTypeInMessage(): void {
+    $result = (new BooleanSchema())->coerce()->safeParse('2');
+
+    $this->assertSame('Expected boolean, received string', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithUncoercibleInteger_ShouldReportOriginalTypeInMessage(): void {
+    $result = (new BooleanSchema())->coerce()->safeParse(2);
+
+    $this->assertSame('Expected boolean, received integer', $result->issues[0]->message);
+  }
+
   public function test_coerce_WithStringNotTrue_ShouldFail(): void {
     $schema = (new BooleanSchema())->coerce();
 
