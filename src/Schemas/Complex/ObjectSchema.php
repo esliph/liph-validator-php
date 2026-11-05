@@ -227,6 +227,7 @@ final class ObjectSchema extends CoercibleSchema {
 
   public function catchall(Schema $schema): static {
     $clone = clone $this;
+    $clone->strict = false;
     $clone->catchall = $schema;
 
     return $clone;
