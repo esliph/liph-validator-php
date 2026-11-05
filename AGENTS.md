@@ -1,0 +1,65 @@
+# AGENTS.md
+
+This file provides guidance to Agents when working with code in this repository.
+
+## Overview
+
+`esliph/validator`: a Zod-inspired data validation library for PHP (>= 8.2, no runtime dependencies). Namespace `Esliph\Validator\` → `src/`; tests in `Esliph\Validator\Tests\` → `tests/`.
+
+## Commands
+
+PHP/Composer are not expected on the host — everything runs through Docker via the `Makefile` (extra arguments go in `ARGS`):
+
+```sh
+make deps                    # composer install (composer:latest container)
+make test                    # full PHPUnit suite
+make test ARGS="--filter test_min_WithValueGreaterThanMin_ShouldPass"   # a single test
+make test ARGS="tests/Schemas/Primitive/IntegerSchemaTest.php"          # a single file
+make analyse                 # PHPStan (config in phpstan.neon: level 8, src + tests)
+make cov                     # text coverage (pcov)
+make cov_html                # HTML coverage in cache/tests/coverage
+make cli                     # bash shell inside the container
+```
+
+`make test` runs `composer run test -- $(ARGS)` inside the container, so `ARGS` is forwarded to `vendor/bin/phpunit`. `phpunit.xml` uses `failOnDeprecation="true"` — PHP deprecations break the suite. pcov is disabled by default (`docker/php/conf.d/pcov.ini`) and is only enabled in the coverage scripts.
+
+Static analysis via PHPStan (`make analyse`, extra options in `ARGS`, e.g. `ARGS="--level=max"`); cache in `cache/phpstan`. No formatter is configured.
+
+## Architecture
+
+**Public entry point:** `V` (static factory: `V::string()`, `V::int()`, `V::object([...])`, `V::_array(...)`, `V::union(...)`...). Names prefixed with `_` (`_array`, `_default`) exist because `array`/`default` are reserved words.
+
+**Schema hierarchy:**
+- `Schema` (abstract) — parse pipeline, rules, transforms, `optional()`, `_default()`, `refine()`.
+- `CoercibleSchema` — adds the `coerce()` flag; each subclass decides in `parseType` what to coerce.
+- `Primitive/`: `NumberSchema` (base of `IntegerSchema` and `FloatSchema`), `StringSchema`, `BooleanSchema`, `DateSchema`.
+- `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value.
+
+**`Schema::_parse($value, $path)` pipeline** (order matters):
+1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`, or a `required` issue.
+2. `parseType()` (abstract) — type check + coercion; a failure short-circuits.
+3. `validateRules()` — runs every accumulated `Rule`, collecting *all* issues (does not stop at the first one).
+4. `validateType()` — hook for validating children (e.g. `ObjectSchema` validates each shape field, strict/catchall/passthrough mode; `ArraySchema` validates elements). No-op by default.
+5. `applyTransforms()` — transforms only run if everything passed.
+
+Composite schemas call `$child->_parse($v, [...$path, $key])` directly on their children, propagating the `path` that becomes `Issue::$path`.
+
+**Immutability:** every fluent method (`min`, `optional`, `coerce`, `strict`...) clones the schema and modifies the clone (`addRule()` does this for rules). `Schema::__clone` clones the `Rule`s and the default if it is an object; schemas that hold child schemas (`ObjectSchema`, `ArraySchema`, `UnionSchema`) override `__clone` to deep-clone their children — any new composite schema must do the same.
+
+**Rules and errors:**
+- `Validation\Rule` (readonly): `name`, `code`, `check: Closure(mixed $value, array $params): bool`, `message: string|Closure(mixed, array): string`, `params`. New validations must be created as a `Rule` with parameterized values in `params` (not captured in the closure) and a default message via closure.
+- `Results\ParseResult` (readonly, private constructor): `ok($data)`, `fail(Issue)` for a single issue, `fails(Issue[])` for several.
+- `Errors\Issue`: `path`, `message`, `code`. Codes are free-form strings (no enum); reuse the existing ones (`required`, `invalid_type`, `too_small`, `too_big`, `invalid_format`, `custom` from `refine`, etc. — see `grep -rhoE "code: '[a-z_]+'" src | sort -u`) before inventing a new one.
+- `parse()` throws `ValidatorException` (with path-grouping helpers: `getMessagesByPath`, `getFlatMessages`, `toArray`, `toJson`); `safeParse()` returns `ParseResult`; `isValid()` returns bool.
+
+## Tests
+
+- Hierarchy of base cases with abstract hooks: `BaseSchemaTestCase` (tests common to every schema: required/optional/default/transform/refine/clone; requires `createSchema`, `getValidValue`, `getInvalidValue`, `getDefaultValue`, `getTransformFunction`, `getRefineCheck`) → `BaseCoercibleSchemaTestCase` (swaps the hook for `createSchemaCoercible`) → `NumberSchemaTestCase` (numeric rule tests, hook `createNumberSchema`) → `IntegerSchemaTest`/`FloatSchemaTest`/`NumberSchemaTest`. A new schema must extend the appropriate base to inherit the common tests.
+- `BaseSchemaTestCase::provideAllInputTypes()` is a data provider with every PHP type (including `INF`, `NAN`, resource, closure), used via the `#[DataProvider]` attribute.
+- Test naming: `test_<method>_<Condition>_Should<Result>`.
+
+## Conventions
+
+- 2-space indentation, opening brace on the same line, blank line after the class opening.
+- Overridden methods marked with `#[Override]`; `Issue`/`Rule` constructors called with named arguments.
+- Commits in Brazilian Portuguese (pt-BR) using the `type: Description` format (types used: `feat`, `fix`, `refactor`, `test`, `config`, `build`, `remove`).
