@@ -139,7 +139,7 @@ abstract class Schema {
       name: 'refinement',
       code: 'custom',
       check: $callable,
-      message: $message ?? ''
+      message: $message ?? 'Invalid value'
     ));
   }
 

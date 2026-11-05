@@ -317,13 +317,13 @@ class MixedSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('Rejected array', $result->issues[0]->message);
   }
 
-  public function test_refine_WithoutMessage_ShouldUseEmptyMessage(): void {
+  public function test_refine_WithoutMessage_ShouldUseDefaultMessage(): void {
     $schema = (new MixedSchema())->refine(fn(mixed $value, array $params): bool => false);
 
     $result = $schema->safeParse('anything');
 
     $this->assertFalse($result->success);
-    $this->assertSame('', $result->issues[0]->message);
+    $this->assertSame('Invalid value', $result->issues[0]->message);
   }
 
   public function test_refine_ShouldReceiveOriginalValueAndEmptyParams(): void {

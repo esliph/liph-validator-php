@@ -429,14 +429,14 @@ class SchemaTest extends TestCase {
     $this->assertSame('Invalid value: test', $result->issues[0]->message);
   }
 
-  public function test_refine_WithNullMessage_ShouldUseEmptyString(): void {
+  public function test_refine_WithNullMessage_ShouldUseDefaultMessage(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(fn(mixed $v) => false, null);
 
     $result = $schema->safeParse('test');
 
     $this->assertFalse($result->success);
-    $this->assertSame('', $result->issues[0]->message);
+    $this->assertSame('Invalid value', $result->issues[0]->message);
   }
 
   public function test_optional_ShouldMarkSchemaAsOptional(): void {
