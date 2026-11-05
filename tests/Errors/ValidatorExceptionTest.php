@@ -77,6 +77,15 @@ class ValidatorExceptionTest extends TestCase {
     $this->assertStringContainsString('Root error', $message);
   }
 
+  public function test_construct_WithIssueAtFirstListIndex_ShouldShowIndexInsteadOfRoot(): void {
+    $issue = new Issue([0], 'Item error', 'invalid_type');
+
+    $exception = new ValidatorException([$issue]);
+
+    $this->assertStringContainsString('[0] Item error', $exception->getMessage());
+    $this->assertStringNotContainsString('(root)', $exception->getMessage());
+  }
+
   public function test_getIssues_ShouldReturnAllStoredIssues(): void {
     $issues = [
       new Issue(['field1'], 'Error 1', 'CODE_001'),

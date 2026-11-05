@@ -111,7 +111,7 @@ final class ValidatorException extends RuntimeException {
 
   private function buildMessage(): string {
     $lines = array_map(
-      static fn(Issue $e): string => '[' . ($e->pathString() ?: '(root)') . "] {$e->message} (code: {$e->code})",
+      static fn(Issue $e): string => '[' . ($e->path === [] ? '(root)' : $e->pathString()) . "] {$e->message} (code: {$e->code})",
       $this->issues
     );
 
