@@ -97,7 +97,7 @@ final class ArraySchema extends CoercibleSchema {
   public function length(int $length, string|Closure|null $message = null): static {
     return $this->addRule(new Rule(
       name: 'length',
-      code: 'invalid_type',
+      code: 'invalid_length',
       check: static fn(array $value, array $params): bool => count($value) === $params['length'],
       message: $message ?? static fn(array $value, array $params): string => "Array must have exactly {$params['length']} elements",
       params: ['length' => $length]

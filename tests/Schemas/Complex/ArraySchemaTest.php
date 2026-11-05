@@ -732,15 +732,15 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Array must have exactly 2 elements', $result->issues[0]->message);
   }
 
-  public function test_length_WithWrongLength_ShouldFailWithInvalidTypeCode(): void {
-    // Comportamento atual: length usa o código 'invalid_type' (e não too_small/too_big).
+  public function test_length_WithWrongLength_ShouldFailWithInvalidLengthCode(): void {
+    // Mesmo código de StringSchema::length.
     $schema = (new ArraySchema())->length(2);
 
     $tooShort = $schema->safeParse([1]);
     $tooLong = $schema->safeParse([1, 2, 3]);
 
-    $this->assertSame('invalid_type', $tooShort->issues[0]->code);
-    $this->assertSame('invalid_type', $tooLong->issues[0]->code);
+    $this->assertSame('invalid_length', $tooShort->issues[0]->code);
+    $this->assertSame('invalid_length', $tooLong->issues[0]->code);
   }
 
   public function test_length_WithCustomStringMessage_ShouldUseIt(): void {
@@ -821,7 +821,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertCount(3, $result->issues);
     $this->assertSame('too_small', $result->issues[0]->code);
     $this->assertSame('too_small', $result->issues[1]->code);
-    $this->assertSame('invalid_type', $result->issues[2]->code);
+    $this->assertSame('invalid_length', $result->issues[2]->code);
   }
 
   public function test_rules_WithMaxAndLengthFailing_ShouldReportBothIssues(): void {
@@ -832,7 +832,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
     $this->assertCount(2, $result->issues);
     $this->assertSame('too_big', $result->issues[0]->code);
-    $this->assertSame('invalid_type', $result->issues[1]->code);
+    $this->assertSame('invalid_length', $result->issues[1]->code);
   }
 
   public function test_rules_WithMinAndMaxRange_ShouldRespectBothBounds(): void {
