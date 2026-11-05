@@ -407,6 +407,30 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
   }
 
+  public function test_positive_WithZero_ShouldDescribePositiveInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->positive()->safeParse(0);
+
+    $this->assertSame('Must be a positive number', $result->issues[0]->message);
+  }
+
+  public function test_nonnegative_WithNegativeValue_ShouldDescribeNonNegativeInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->nonnegative()->safeParse(-1);
+
+    $this->assertSame('Must be a non-negative number', $result->issues[0]->message);
+  }
+
+  public function test_negative_WithZero_ShouldDescribeNegativeInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->negative()->safeParse(0);
+
+    $this->assertSame('Must be a negative number', $result->issues[0]->message);
+  }
+
+  public function test_nonpositive_WithPositiveValue_ShouldDescribeNonPositiveInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->nonpositive()->safeParse(1);
+
+    $this->assertSame('Must be a non-positive number', $result->issues[0]->message);
+  }
+
   public function test_combined_GtAndLt_ShouldEnforceExclusiveRange(): void {
     $schema = $this->createNumberSchema()
       ->gt(10)

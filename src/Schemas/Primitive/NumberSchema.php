@@ -82,19 +82,19 @@ class NumberSchema extends CoercibleSchema {
   }
 
   public function nonnegative(string|Closure|null $message = null): static {
-    return $this->gte(0, $message ?? 'Must be a positive number');
+    return $this->gte(0, $message ?? 'Must be a non-negative number');
   }
 
   public function nonpositive(string|Closure|null $message = null): static {
-    return $this->lte(0, $message ?? 'Must be a negative number');
+    return $this->lte(0, $message ?? 'Must be a non-positive number');
   }
 
   public function positive(string|Closure|null $message = null): static {
-    return $this->gt(0, $message ?? 'Must be a non-negative number');
+    return $this->gt(0, $message ?? 'Must be a positive number');
   }
 
   public function negative(string|Closure|null $message = null): static {
-    return $this->lt(0, $message ?? 'Must be a non-positive number');
+    return $this->lt(0, $message ?? 'Must be a negative number');
   }
 
   public function between(int|float $min, int|float $max, string|Closure|null $message = null): static {
