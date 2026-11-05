@@ -32,7 +32,7 @@ final class ArraySchema extends CoercibleSchema {
         $decoded = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
 
         if (is_array($decoded)) {
-          return ParseResult::ok($decoded);
+          $value = $decoded;
         }
       } catch (\Exception) {
       }
