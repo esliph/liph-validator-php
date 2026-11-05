@@ -2,6 +2,7 @@
 
 namespace Esliph\Validator\Schemas\Complex;
 
+use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Schemas\Schema;
 use Override;
@@ -28,6 +29,16 @@ final class UnionSchema extends Schema {
 
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
+    if ($this->schemas === []) {
+      return ParseResult::fail(
+        new Issue(
+          path: $path,
+          message: 'Union has no members to match against',
+          code: 'invalid_type'
+        )
+      );
+    }
+
     $issues = [];
 
     foreach ($this->schemas as $schema) {

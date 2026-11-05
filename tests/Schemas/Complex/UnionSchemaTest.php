@@ -210,6 +210,17 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertNotEmpty($result->issues, 'A failed parse must explain itself with at least one issue');
   }
 
+  public function test_parseType_WithNoMembers_ShouldReportInvalidTypeAtUnionPath(): void {
+    $schema = new ObjectSchema(['field' => new UnionSchema()]);
+
+    $result = $schema->safeParse((object) ['field' => 'anything']);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Union has no members to match against', $result->issues[0]->message);
+    $this->assertSame(['field'], $result->issues[0]->path);
+  }
+
   public function test_parseType_WithFailingRootValue_ShouldReportEmptyPath(): void {
     $schema = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
