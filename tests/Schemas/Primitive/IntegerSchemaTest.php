@@ -254,4 +254,57 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertTrue($result->success);
     $this->assertSame(1000, $result->data);
   }
+
+  public function test_parseType_WithFloatAboveIntRange_ShouldReject(): void {
+    $result = (new IntegerSchema())->safeParse(1e20);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithFloatEqualToTwoToThe63_ShouldReject(): void {
+    $result = (new IntegerSchema())->safeParse((float) PHP_INT_MAX);
+
+    $this->assertFalse($result->success);
+  }
+
+  public function test_parseType_WithFloatEqualToIntMin_ShouldAccept(): void {
+    $result = (new IntegerSchema())->safeParse((float) PHP_INT_MIN);
+
+    $this->assertTrue($result->success);
+    $this->assertSame(PHP_INT_MIN, $result->data);
+  }
+
+  public function test_coerce_WithIntegerStringAboveIntMax_ShouldReject(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('9223372036854775808');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  public function test_coerce_WithIntegerStringBelowIntMin_ShouldReject(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('-9223372036854775809');
+
+    $this->assertFalse($result->success);
+  }
+
+  public function test_coerce_WithIntMaxString_ShouldCoerceExactly(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('9223372036854775807');
+
+    $this->assertTrue($result->success);
+    $this->assertSame(PHP_INT_MAX, $result->data);
+  }
+
+  public function test_coerce_WithIntegerStringBeyondFloatPrecision_ShouldCoerceExactly(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('9007199254740993');
+
+    $this->assertTrue($result->success);
+    $this->assertSame(9007199254740993, $result->data);
+  }
+
+  public function test_coerce_WithExponentialStringAboveIntRange_ShouldReject(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('1e20');
+
+    $this->assertFalse($result->success);
+  }
 }
