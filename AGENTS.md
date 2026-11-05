@@ -15,15 +15,20 @@ make deps                    # composer install (composer:latest container)
 make test                    # full PHPUnit suite
 make test ARGS="--filter test_min_WithValueGreaterThanMin_ShouldPass"   # a single test
 make test ARGS="tests/Schemas/Primitive/IntegerSchemaTest.php"          # a single file
-make analyse                 # PHPStan (config in phpstan.neon: level 8, src + tests)
+make analyse                 # PHPStan (config in phpstan.neon: level 8, src + tests + benchmarks)
 make cov                     # text coverage (pcov)
 make cov_html                # HTML coverage in cache/tests/coverage
+make bench                   # PHPBench, aggregate report (config in phpbench.json)
+make bench ARGS="--filter=UnionInvalid --tag=before"                    # save a run as a baseline
+make bench BENCH_SRC=cache/bench/<sha>/src ARGS="--tag=base"            # measure another copy of src/
 make cli                     # bash shell inside the container
 ```
 
 `make test` runs `composer run test -- $(ARGS)` inside the container, so `ARGS` is forwarded to `vendor/bin/phpunit`. `phpunit.xml` uses `failOnDeprecation="true"` — PHP deprecations break the suite. pcov is disabled by default (`docker/php/conf.d/pcov.ini`) and is only enabled in the coverage scripts.
 
 Static analysis via PHPStan (`make analyse`, extra options in `ARGS`, e.g. `ARGS="--level=max"`); cache in `cache/phpstan`. No formatter is configured.
+
+Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subjects in `benchmarks/*Bench.php` (namespace `Esliph\Validator\Benchmarks\`), tagged runs stored in `cache/phpbench` (machine-local), compared with `--ref=<tag>`. `benchmarks/bootstrap.php` honors `BENCH_SRC`: when it points at a directory, library classes load from there instead of `src/`, so the same benchmarks measure another version of the library without touching the working tree (a class missing there is an error, never a fallback to `src/`). Composer's process timeout is disabled for this script. The container has no opcache/JIT — numbers are only comparable within the same session.
 
 ## Architecture
 
