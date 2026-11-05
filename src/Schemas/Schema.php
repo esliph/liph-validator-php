@@ -50,7 +50,7 @@ abstract class Schema {
         );
       }
 
-      $value = $this->default instanceof Closure ? ($this->default)() : $this->default;
+      $value = $this->resolveDefault();
     }
 
     $typeResult = $this->parseType($value, $path);
@@ -163,6 +163,22 @@ abstract class Schema {
     $clone->hasDefault = true;
 
     return $clone;
+  }
+
+  /**
+   * Um default objeto é clonado a cada uso para que a mutação feita por quem
+   * recebe o resultado não vaze para o próximo parse.
+   */
+  private function resolveDefault(): mixed {
+    if ($this->default instanceof Closure) {
+      return ($this->default)();
+    }
+
+    if (is_object($this->default)) {
+      return clone $this->default;
+    }
+
+    return $this->default;
   }
 
   protected function applyTransforms(mixed $value): mixed {

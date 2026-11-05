@@ -503,6 +503,19 @@ class SchemaTest extends TestCase {
     $this->assertSame($default, $result->data);
   }
 
+  public function test_default_WithObjectValue_ShouldReturnFreshCopyOnEachParse(): void {
+    $default = (object) ['tags' => 'a'];
+    $schema = (new TestSchema())->_default($default);
+
+    $first = $schema->safeParse(null)->data;
+    $first->tags = 'mutated';
+    $second = $schema->safeParse(null)->data;
+
+    $this->assertNotSame($first, $second);
+    $this->assertNotSame($default, $second);
+    $this->assertSame('a', $second->tags);
+  }
+
   public function test_isAssociativeArray_WithEmptyArray_ShouldReturnFalse(): void {
     $schema = new TestSchema();
 
