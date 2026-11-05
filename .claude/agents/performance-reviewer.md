@@ -38,7 +38,7 @@ The `Schema::_parse` pipeline (null/default → `parseType` → `validateRules` 
 - Objects created on every parse: `ParseResult` (each recursion level allocates at least one), `new \stdClass`, `Issue`, temporary arrays (`[$issue]`, `[$key]`).
 - `path` arrays: `array_merge($path, [$key])` allocates **two** arrays per field/element (the `[$key]` literal and the result). `[...$path, $key]` allocates one; `$p = $path; $p[] = $key;` also allocates one (COW separation on write). Compare against what the diff introduces.
 - Work done on the success path that only serves the failure path: a message built (`'...' . gettype($value)`, interpolation) before knowing whether there will be an issue.
-- Functions that allocate to answer a boolean question: `array_keys($a) !== range(0, count($a) - 1)` allocates two O(n) arrays; `array_is_list()` (PHP ≥ 8.1, the project requires 8.2) answers without allocating. Same for `array_values`/`array_map`/`array_filter` used only to count or test.
+- Functions that allocate to answer a boolean question: `array_keys($a) !== range(0, count($a) - 1)` allocates two O(n) arrays; `array_is_list()` (PHP ≥ 8.1, the project requires 8.3) answers without allocating. Same for `array_values`/`array_map`/`array_filter` used only to count or test.
 - Exceptions as control flow: `try { json_decode(..., JSON_THROW_ON_ERROR) } catch` on invalid input builds an exception object with a stack trace on every failure.
 
 ### Unnecessary clones
@@ -95,7 +95,7 @@ PHP
 
 - If `vendor/` does not exist, do **not** run `make deps`; say that the measurement was not done.
 - To compare before/after, do not use `git stash`/`checkout` — you do not change the working tree. Reproduce both variants of the isolated snippet inside the script itself (function A vs function B with the same input).
-- The container runs PHP 8.2 without opcache/JIT on the CLI: use the numbers only as a relative comparison within the same environment, never as absolute production values.
+- The container runs PHP 8.3 without opcache/JIT on the CLI: use the numbers only as a relative comparison within the same environment, never as absolute production values.
 - Vary N (e.g. 10, 100, 1000 elements) when the finding is about complexity — the shape of the curve proves more than a single point.
 
 ## 6. Report

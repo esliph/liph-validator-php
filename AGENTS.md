@@ -4,7 +4,7 @@ This file provides guidance to Agents when working with code in this repository.
 
 ## Overview
 
-`esliph/validator`: a Zod-inspired data validation library for PHP (>= 8.2, no runtime dependencies). Namespace `Esliph\Validator\` → `src/`; tests in `Esliph\Validator\Tests\` → `tests/`.
+`esliph/validator`: a Zod-inspired data validation library for PHP (>= 8.3, no runtime dependencies). Namespace `Esliph\Validator\` → `src/`; tests in `Esliph\Validator\Tests\` → `tests/`.
 
 ## Commands
 
