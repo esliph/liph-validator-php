@@ -11,15 +11,15 @@ class FloatSchema extends NumberSchema {
 
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
+    if ($this->coerce && is_string($value) && is_numeric($value)) {
+      $value = (float) $value;
+    }
+
     if (is_float($value)) {
-      return ParseResult::ok($value);
+      return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $path);
     }
 
     if (is_int($value)) {
-      return ParseResult::ok((float) $value);
-    }
-
-    if ($this->coerce && is_string($value) && is_numeric($value)) {
       return ParseResult::ok((float) $value);
     }
 

@@ -17,20 +17,36 @@ class NumberSchema extends CoercibleSchema {
 
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
-    if (is_int($value) || is_float($value)) {
+    if ($this->coerce && is_string($value) && is_numeric($value)) {
+      // Aritmética de string numérica: inteiro que cabe vira int, o resto vira float.
+      $value = $value + 0;
+    }
+
+    if (is_int($value)) {
       return ParseResult::ok($value);
     }
 
-    if ($this->coerce && is_numeric($value)) {
-      $value = str_contains($value, '.') ? (float) $value : (int) $value;
-
-      return ParseResult::ok($value);
+    if (is_float($value)) {
+      return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $path);
     }
 
     return ParseResult::fail(
       new Issue(
         path: $path,
         message: 'Expected number, received ' . gettype($value),
+        code: 'invalid_type'
+      )
+    );
+  }
+
+  /**
+   * @param (string|int)[] $path
+   */
+  protected function nonFiniteIssue(float $value, array $path): ParseResult {
+    return ParseResult::fail(
+      new Issue(
+        path: $path,
+        message: "Expected finite number, received {$value}",
         code: 'invalid_type'
       )
     );

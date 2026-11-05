@@ -68,18 +68,25 @@ class NumberSchemaTest extends NumberSchemaTestCase {
     $this->assertSame(PHP_INT_MAX, $result->data);
   }
 
-  public function test_parseType_WithInfinity_ShouldAccept(): void {
+  public function test_parseType_WithInfinity_ShouldReject(): void {
     $result = (new NumberSchema())->safeParse(INF);
 
-    $this->assertTrue($result->success);
-    $this->assertTrue(is_infinite($result->data));
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
   }
 
-  public function test_parseType_WithNaN_ShouldAccept(): void {
+  public function test_parseType_WithNaN_ShouldReject(): void {
     $result = (new NumberSchema())->safeParse(NAN);
 
-    $this->assertTrue($result->success);
-    $this->assertTrue(is_nan($result->data));
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received NAN', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithOverflowingExponentialString_ShouldReject(): void {
+    $result = (new NumberSchema())->coerce()->safeParse('1e400');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
   }
 
   public function test_parseType_WithString_ShouldReject(): void {

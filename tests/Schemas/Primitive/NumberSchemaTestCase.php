@@ -333,6 +333,40 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $this->createNumberSchema()->multipleOf($divisor);
   }
 
+  /**
+   * @return array<string, array{float}>
+   */
+  public static function provideNonFiniteValues(): array {
+    return [
+      'infinity' => [INF],
+      'negative_infinity' => [-INF],
+      'nan' => [NAN],
+    ];
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_parseType_WithNonFiniteValue_ShouldFailWithInvalidType(float $value): void {
+    $result = $this->createNumberSchema()->safeParse($value);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_parseType_WithNonFiniteValueAndCoercion_ShouldFailWithInvalidType(float $value): void {
+    $result = $this->createNumberSchema()->coerce()->safeParse($value);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  public function test_coerce_WithOverflowingExponentialString_ShouldFailWithInvalidType(): void {
+    $result = $this->createNumberSchema()->coerce()->safeParse('1e400');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
   public function test_multipleOf_WithFractionalDivisorAndIntegerMultiple_ShouldPass(): void {
     $schema = $this->createNumberSchema()->multipleOf(0.1);
 
