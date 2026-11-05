@@ -1,4 +1,5 @@
 ARGS ?=
+BENCH_SRC ?=
 
 down:
 	@docker compose down -v $(ARGS)
@@ -19,6 +20,10 @@ test:
 analyse:
 	@docker compose --profile test run --rm validator composer run analyse -- $(ARGS)
 .PHONY: analyse
+
+bench:
+	@docker compose --profile test run --rm -e BENCH_SRC=$(BENCH_SRC) validator composer run bench -- $(ARGS)
+.PHONY: bench
 
 cov:
 	@docker compose --profile coverage run --rm validator composer run test:coverage -- $(ARGS)

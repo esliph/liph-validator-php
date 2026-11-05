@@ -18,7 +18,11 @@
     "test": "vendor/bin/phpunit",
     "analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
     "test:coverage": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-text",
-    "test:coverage:html": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-html cache/tests/coverage --coverage-text"
+    "test:coverage:html": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-html cache/tests/coverage --coverage-text",
+    "bench": [
+      "Composer\\Config::disableProcessTimeout",
+      "vendor/bin/phpbench run --report=aggregate"
+    ]
   },
   "autoload": {
     "psr-4": {
@@ -27,7 +31,8 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Esliph\\Validator\\Tests\\": "tests/"
+      "Esliph\\Validator\\Tests\\": "tests/",
+      "Esliph\\Validator\\Benchmarks\\": "benchmarks/"
     }
   },
   "require": {
@@ -35,7 +40,8 @@
   },
   "require-dev": {
     "phpunit/phpunit": "^11.5",
-    "phpstan/phpstan": "^2.3"
+    "phpstan/phpstan": "^2.3",
+    "phpbench/phpbench": "^1.7"
   },
   "minimum-stability": "stable",
   "prefer-stable": true
