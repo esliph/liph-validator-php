@@ -17,6 +17,10 @@ use PhpBench\Attributes as Bench;
  * step: a ~10x ratio between steps means linear, ~1x means constant. Compare
  * `benchListLastValue` n=50 against `benchBackedEnum` to judge whether a hash set
  * would pay off.
+ *
+ * `benchListMiss` measures the failure path, which a union pays whenever the
+ * enum member does not match and its message is discarded: it should grow only
+ * with the `in_array` scan, not with building the message.
  */
 final class EnumBench {
 
@@ -47,6 +51,16 @@ final class EnumBench {
     Scenario::expectSuccess($this->schema, $this->input);
   }
 
+  /**
+   * @param array{size: int} $params
+   */
+  public function setUpListMiss(array $params): void {
+    $this->setUpList($params);
+    $this->input = 'missing';
+
+    Scenario::expectIssues($this->schema, $this->input, 1);
+  }
+
   public function setUpBackedEnum(): void {
     $this->schema = V::enum(IntBacked::class);
     $this->input = 42;
@@ -57,6 +71,12 @@ final class EnumBench {
   #[Bench\ParamProviders('provideSizes')]
   #[Bench\BeforeMethods('setUpList')]
   public function benchListLastValue(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\ParamProviders('provideSizes')]
+  #[Bench\BeforeMethods('setUpListMiss')]
+  public function benchListMiss(): void {
     $this->schema->safeParse($this->input);
   }
 

@@ -19,6 +19,11 @@ final class EnumSchema extends Schema {
   /** @var class-string<BackedEnum>|null */
   private readonly ?string $enumClass;
   private readonly bool $intBacked;
+  /**
+   * Montada uma vez: num union, a falha de uma opção-enum é comum e a
+   * mensagem é descartada, então não pode custar O(n) a cada parse.
+   */
+  private readonly string $failureMessage;
 
   /**
    * @param list<string|int|float|bool>|array<string|int|float|bool>|class-string<BackedEnum> $values
@@ -28,23 +33,15 @@ final class EnumSchema extends Schema {
     if (is_string($values)) {
       $this->enumClass = $values;
       [$this->values, $this->intBacked] = self::readBackedEnum($values);
+    } else {
+      self::assertValidList($values);
 
-      return;
+      $this->enumClass = null;
+      $this->intBacked = false;
+      $this->values = array_values($values);
     }
 
-    if ($values === []) {
-      throw new InvalidArgumentException('enum values must not be empty');
-    }
-
-    foreach ($values as $value) {
-      if (!self::isAcceptedScalar($value)) {
-        throw new InvalidArgumentException('enum values must be strings, ints, bools or finite floats');
-      }
-    }
-
-    $this->enumClass = null;
-    $this->intBacked = false;
-    $this->values = array_values($values);
+    $this->failureMessage = 'Expected one of ' . implode(', ', array_map(self::formatValue(...), $this->values));
   }
 
   /**
@@ -88,10 +85,25 @@ final class EnumSchema extends Schema {
     return ParseResult::fail(
       new Issue(
         path: $path,
-        message: 'Expected one of ' . implode(', ', array_map(self::formatValue(...), $this->values)),
+        message: $this->failureMessage,
         code: 'invalid_enum_value'
       )
     );
+  }
+
+  /**
+   * @param array<mixed> $values
+   */
+  private static function assertValidList(array $values): void {
+    if ($values === []) {
+      throw new InvalidArgumentException('enum values must not be empty');
+    }
+
+    foreach ($values as $value) {
+      if (!self::isAcceptedScalar($value)) {
+        throw new InvalidArgumentException('enum values must be strings, ints, bools or finite floats');
+      }
+    }
   }
 
   private static function isAcceptedScalar(mixed $value): bool {
