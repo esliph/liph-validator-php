@@ -302,13 +302,13 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
   public function test_coerce_WithUncoercibleString_ShouldReportOriginalTypeInMessage(): void {
     $result = (new BooleanSchema())->coerce()->safeParse('2');
 
-    $this->assertSame('Expected boolean, received string', $result->issues[0]->message);
+    $this->assertSame('Expected bool, received string', $result->issues[0]->message);
   }
 
   public function test_coerce_WithUncoercibleInteger_ShouldReportOriginalTypeInMessage(): void {
     $result = (new BooleanSchema())->coerce()->safeParse(2);
 
-    $this->assertSame('Expected boolean, received integer', $result->issues[0]->message);
+    $this->assertSame('Expected bool, received int', $result->issues[0]->message);
   }
 
   public function test_coerce_WithStringNotTrue_ShouldFail(): void {
@@ -917,5 +917,21 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
       $this->assertFalse($result->success, "Float should fail coercion");
       $this->assertSame('invalid_type', $result->issues[0]->code);
     }
+  }
+
+  public function test_messages_WithInvalidTypeClosureAndCoercion_ShouldReceiveOriginalValueAndParams(): void {
+    $received = null;
+    $schema = (new BooleanSchema())->coerce()->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'sim ou não';
+      },
+    ]);
+
+    $result = $schema->safeParse('talvez');
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('sim ou não', $result->issues[0]->message);
+    $this->assertSame(['talvez', ['expected' => 'bool', 'received' => 'string']], $received);
   }
 }

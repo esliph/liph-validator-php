@@ -1320,4 +1320,39 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($result3->success);
     $this->assertSame('TEST STRING', $result3->data);
   }
+
+  public function test_messages_WithInvalidTypeString_ShouldUseCustomMessage(): void {
+    $result = (new StringSchema())->messages(['invalid_type' => 'Texto, por favor'])->safeParse(42);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Texto, por favor', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveValueAndParams(): void {
+    $received = null;
+    $schema = (new StringSchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse(42);
+
+    $this->assertSame('custom', $result->issues[0]->message);
+    $this->assertSame([42, ['expected' => 'string', 'received' => 'int']], $received);
+  }
+
+  public function test_parseType_WithInt_ShouldDescribeAsInt(): void {
+    $result = (new StringSchema())->safeParse(42);
+
+    $this->assertSame('Expected string, received int', $result->issues[0]->message);
+  }
+
+  public function test_messages_CalledTwiceWithDifferentCodes_ShouldMergeMaps(): void {
+    $schema = (new StringSchema())->messages(['required' => 'A'])->messages(['invalid_type' => 'B']);
+
+    $this->assertSame('A', $schema->safeParse(null)->issues[0]->message);
+    $this->assertSame('B', $schema->safeParse(1)->issues[0]->message);
+  }
 }

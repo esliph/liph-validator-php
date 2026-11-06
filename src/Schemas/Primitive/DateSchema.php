@@ -4,7 +4,6 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -19,19 +18,18 @@ final class DateSchema extends CoercibleSchema {
   protected ?DateTimeZone $timezone = null;
 
   #[Override]
+  protected static function messageCodes(): array {
+    return [...parent::messageCodes(), 'invalid_date'];
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     if ($value instanceof DateTimeInterface) {
       return ParseResult::ok(DateTimeImmutable::createFromInterface($value));
     }
 
     if (!$this->coerce) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected DateTimeImmutable, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
+      return $this->invalidDateType($value, $path);
     }
 
     if (is_int($value)) {
@@ -39,18 +37,12 @@ final class DateSchema extends CoercibleSchema {
     }
 
     if (!is_string($value)) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected DateTimeImmutable, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
+      return $this->invalidDateType($value, $path);
     }
 
     // Em branco, o construtor devolveria o instante atual.
     if (trim($value) === '') {
-      return $this->invalidDate($path);
+      return $this->invalidDate($value, $path);
     }
 
     try {
@@ -58,12 +50,12 @@ final class DateSchema extends CoercibleSchema {
         ? DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone)
         : new DateTimeImmutable($value, $this->timezone);
     } catch (Exception) {
-      return $this->invalidDate($path);
+      return $this->invalidDate($value, $path);
     }
 
     // Data impossível (ex.: 2024-02-30) só gera warning e seria normalizada para o mês seguinte.
     if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
-      return $this->invalidDate($path);
+      return $this->invalidDate($value, $path);
     }
 
     return ParseResult::ok($date);
@@ -72,13 +64,23 @@ final class DateSchema extends CoercibleSchema {
   /**
    * @param string[] $path
    */
-  private function invalidDate(array $path): ParseResult {
+  private function invalidDateType(mixed $value, array $path): ParseResult {
+    $received = self::describeType($value);
+
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Invalid date string',
-        code: 'invalid_date'
-      )
+      $this->issue('invalid_type', "Expected DateTimeImmutable, received $received", $value, $path, [
+        'expected' => 'DateTimeImmutable',
+        'received' => $received,
+      ])
+    );
+  }
+
+  /**
+   * @param string[] $path
+   */
+  private function invalidDate(mixed $value, array $path): ParseResult {
+    return ParseResult::fail(
+      $this->issue('invalid_date', 'Invalid date string', $value, $path, ['format' => $this->format])
     );
   }
 

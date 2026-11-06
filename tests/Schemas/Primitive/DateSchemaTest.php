@@ -124,7 +124,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected DateTimeImmutable, received integer', $result->issues[0]->message);
+    $this->assertSame('Expected DateTimeImmutable, received int', $result->issues[0]->message);
   }
 
   public function test_parseType_WithStdClass_ShouldFailWithInvalidType(): void {
@@ -134,7 +134,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected DateTimeImmutable, received object', $result->issues[0]->message);
+    $this->assertSame('Expected DateTimeImmutable, received stdClass', $result->issues[0]->message);
   }
 
   public function test_parseType_WithNull_ShouldFailWithRequired(): void {
@@ -344,7 +344,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected DateTimeImmutable, received double', $result->issues[0]->message);
+    $this->assertSame('Expected DateTimeImmutable, received float', $result->issues[0]->message);
   }
 
   public function test_coerce_WithBoolean_ShouldFailWithInvalidType(): void {
@@ -1042,5 +1042,69 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->expectException(ValidatorException::class);
 
     (new DateSchema())->before(self::utc('2024-01-01'))->parse(self::utc('2024-06-01'));
+  }
+
+  public function test_parseType_WithIntWithoutCoercion_ShouldDescribeAsInt(): void {
+    $result = (new DateSchema())->safeParse(5);
+
+    $this->assertSame('Expected DateTimeImmutable, received int', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveValueAndParams(): void {
+    $received = null;
+    $schema = (new DateSchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse(5);
+
+    $this->assertSame([5, ['expected' => 'DateTimeImmutable', 'received' => 'int']], $received);
+  }
+
+  public function test_messages_WithInvalidDateString_ShouldUseCustomMessage(): void {
+    $schema = (new DateSchema())->coerce()->format('Y-m-d')->messages(['invalid_date' => 'Data inválida']);
+
+    $result = $schema->safeParse('2024-02-30');
+
+    $this->assertSame('invalid_date', $result->issues[0]->code);
+    $this->assertSame('Data inválida', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidDateClosureAndFormat_ShouldReceiveValueAndFormat(): void {
+    $received = null;
+    $schema = (new DateSchema())->coerce()->format('Y-m-d')->messages([
+      'invalid_date' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('2024-02-30');
+
+    $this->assertSame(['2024-02-30', ['format' => 'Y-m-d']], $received);
+  }
+
+  public function test_messages_WithInvalidDateClosureWithoutFormat_ShouldReceiveNullFormat(): void {
+    $received = null;
+    $schema = (new DateSchema())->coerce()->messages([
+      'invalid_date' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('xyz');
+
+    $this->assertSame(['xyz', ['format' => null]], $received);
+  }
+
+  public function test_parseType_WithInvalidDateString_ShouldKeepDefaultMessage(): void {
+    $result = (new DateSchema())->coerce()->safeParse('xyz');
+
+    $this->assertSame('invalid_date', $result->issues[0]->code);
+    $this->assertSame('Invalid date string', $result->issues[0]->message);
   }
 }

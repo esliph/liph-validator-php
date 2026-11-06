@@ -4,7 +4,6 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 use Closure;
 use Override;
@@ -159,13 +158,17 @@ final class StringSchema extends CoercibleSchema {
     return $this->transform(static fn(string $value): string => mb_strtoupper($value));
   }
 
+  /**
+   * @param string[] $path
+   */
   private function invalidStringType(mixed $value, array $path): ParseResult {
+    $received = self::describeType($value);
+
     return ParseResult::fail(
-      new Issue(
-        $path,
-        'Expected string, received ' . gettype($value),
-        'invalid_type'
-      )
+      $this->issue('invalid_type', "Expected string, received $received", $value, $path, [
+        'expected' => 'string',
+        'received' => $received,
+      ])
     );
   }
 }

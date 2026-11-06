@@ -8,7 +8,6 @@ use Override;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 
 class NumberSchema extends CoercibleSchema {

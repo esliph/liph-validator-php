@@ -3,7 +3,6 @@
 namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Override;
 
@@ -50,13 +49,17 @@ final class BooleanSchema extends CoercibleSchema {
     return null;
   }
 
+  /**
+   * @param string[] $path
+   */
   private function invalidTypeBoolean(mixed $value, array $path): ParseResult {
+    $received = self::describeType($value);
+
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected boolean, received ' . gettype($value),
-        code: 'invalid_type'
-      )
+      $this->issue('invalid_type', "Expected bool, received $received", $value, $path, [
+        'expected' => 'bool',
+        'received' => $received,
+      ])
     );
   }
 }
