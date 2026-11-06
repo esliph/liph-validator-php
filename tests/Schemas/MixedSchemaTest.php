@@ -500,4 +500,9 @@ class MixedSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('custom', $result->issues[0]->code);
     $this->assertSame(['meta'], $result->issues[0]->path);
   }
+
+  #[Override]
+  protected function emitsInvalidType(): bool {
+    return false;
+  }
 }

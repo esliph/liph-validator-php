@@ -5,6 +5,7 @@ namespace Esliph\Validator\Tests\Schemas;
 use Closure;
 use InvalidArgumentException;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use Esliph\Validator\Schemas\Schema;
@@ -198,6 +199,37 @@ abstract class BaseSchemaTestCase extends TestCase {
 
     $this->assertSame('custom', $custom->safeParse($input)->issues[0]->message);
     $this->assertNotSame('custom', $base->safeParse($input)->issues[0]->message);
+  }
+
+  /**
+   * Falso nos schemas que não emitem `invalid_type` (Mixed, Literal, Enum, Union).
+   */
+  protected function emitsInvalidType(): bool {
+    return true;
+  }
+
+  #[DataProvider('provideAllInputTypes')]
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveDebugTypeOfInput(mixed $value, string $typeName): void {
+    if (!$this->emitsInvalidType()) {
+      $this->expectNotToPerformAssertions();
+      return;
+    }
+
+    $schema = $this->createSchema()->messages([
+      'invalid_type' => fn(mixed $input, array $params): string => $params['received'],
+    ]);
+
+    $result = $schema->safeParse($value);
+
+    $issue = $result->issues[0] ?? null;
+
+    // Issues de filhos (path não vazio) usam as mensagens dos próprios filhos.
+    if ($issue === null || $issue->code !== 'invalid_type' || $issue->path !== []) {
+      $this->expectNotToPerformAssertions();
+      return;
+    }
+
+    $this->assertSame(get_debug_type($value), $issue->message, "Type $typeName");
   }
 
   public function test_messages_CalledTwiceWithSameCode_ShouldUseLastMessage(): void {

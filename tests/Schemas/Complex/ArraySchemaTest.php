@@ -76,7 +76,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
     $this->assertCount(1, $result->issues);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected indexed array, received object', $result->issues[0]->message);
+    $this->assertSame('Expected list, received associative array', $result->issues[0]->message);
     $this->assertSame([], $result->issues[0]->path);
   }
 
@@ -87,7 +87,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected indexed array, received object', $result->issues[0]->message);
+    $this->assertSame('Expected list, received associative array', $result->issues[0]->message);
   }
 
   public function test_parseType_WithArrayWithGapInKeys_ShouldFailWithInvalidType(): void {
@@ -117,7 +117,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected array, received object', $result->issues[0]->message);
+    $this->assertSame('Expected array, received stdClass', $result->issues[0]->message);
   }
 
   public function test_parseType_WithTraversableObject_ShouldFailWithInvalidType(): void {
@@ -159,8 +159,8 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
       } else {
         $this->assertSame('invalid_type', $result->issues[0]->code);
         $expectedMessage = is_array($value)
-          ? 'Expected indexed array, received object'
-          : 'Expected array, received ' . gettype($value);
+          ? 'Expected list, received associative array'
+          : 'Expected array, received ' . get_debug_type($value);
         $this->assertSame($expectedMessage, $result->issues[0]->message);
       }
     }
@@ -232,7 +232,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected indexed array, received object', $result->issues[0]->message);
+    $this->assertSame('Expected list, received associative array', $result->issues[0]->message);
   }
 
   public function test_coerce_WithInvalidJson_ShouldFailWithInvalidType(): void {
@@ -976,5 +976,34 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $schema = V::_array();
 
     $this->assertTrue($schema->safeParse([1, 'a', null])->success);
+  }
+
+  public function test_messages_WithAssociativeArrayClosure_ShouldReceiveListParams(): void {
+    $received = null;
+    $schema = (new ArraySchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse(['key' => 'value']);
+
+    $this->assertSame('custom', $result->issues[0]->message);
+    $this->assertSame([['key' => 'value'], ['expected' => 'list', 'received' => 'array']], $received);
+  }
+
+  public function test_messages_WithCoercedNonArrayJsonClosure_ShouldReceiveOriginalString(): void {
+    $received = null;
+    $schema = (new ArraySchema())->coerce()->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('"x"');
+
+    $this->assertSame(['"x"', ['expected' => 'array', 'received' => 'string']], $received);
   }
 }

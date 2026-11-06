@@ -4,7 +4,6 @@ namespace Esliph\Validator\Schemas\Complex;
 
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Validation\Rule;
 use Closure;
@@ -27,6 +26,8 @@ final class ArraySchema extends CoercibleSchema {
 
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
+    $input = $value;
+
     if ($this->coerce && is_string($value)) {
       try {
         $decoded = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
@@ -39,22 +40,22 @@ final class ArraySchema extends CoercibleSchema {
     }
 
     if (!is_array($value)) {
+      $received = self::describeType($input);
+
       return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected array, received ' . gettype($value),
-          code: 'invalid_type'
-        )
+        $this->issue('invalid_type', "Expected array, received $received", $input, $path, [
+          'expected' => 'array',
+          'received' => $received,
+        ])
       );
     }
 
     if ($this->isAssociativeArray($value)) {
       return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected indexed array, received object',
-          code: 'invalid_type'
-        )
+        $this->issue('invalid_type', 'Expected list, received associative array', $input, $path, [
+          'expected' => 'list',
+          'received' => 'array',
+        ])
       );
     }
 

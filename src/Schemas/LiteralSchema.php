@@ -2,7 +2,6 @@
 
 namespace Esliph\Validator\Schemas;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 use InvalidArgumentException;
 use Override;
@@ -30,6 +29,11 @@ final class LiteralSchema extends Schema {
   }
 
   #[Override]
+  protected static function messageCodes(): array {
+    return ['required', 'invalid_literal'];
+  }
+
+  #[Override]
   protected function acceptsNull(): bool {
     return $this->value === null;
   }
@@ -41,11 +45,9 @@ final class LiteralSchema extends Schema {
     }
 
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected literal ' . self::formatValue($this->value),
-        code: 'invalid_literal'
-      )
+      $this->issue('invalid_literal', 'Expected literal ' . self::formatValue($this->value), $value, $path, [
+        'value' => $this->value,
+      ])
     );
   }
 }

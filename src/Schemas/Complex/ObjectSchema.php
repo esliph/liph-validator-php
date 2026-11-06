@@ -4,7 +4,6 @@ namespace Esliph\Validator\Schemas\Complex;
 
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Override;
 
@@ -35,15 +34,19 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   #[Override]
+  protected static function messageCodes(): array {
+    return [...parent::messageCodes(), 'unrecognized_keys'];
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     if ($this->coerce && is_array($value)) {
       if (!$this->isAssociativeArray($value)) {
         return ParseResult::fail(
-          new Issue(
-            path: $path,
-            message: 'Expected object or associative array, received indexed array',
-            code: 'invalid_type'
-          )
+          $this->issue('invalid_type', 'Expected object or associative array, received list', $value, $path, [
+            'expected' => 'object',
+            'received' => 'list',
+          ])
         );
       }
 
@@ -51,12 +54,13 @@ final class ObjectSchema extends CoercibleSchema {
     }
 
     if (!is_object($value)) {
+      $received = self::describeType($value);
+
       return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected object, received ' . gettype($value),
-          code: 'invalid_type'
-        )
+        $this->issue('invalid_type', "Expected object, received $received", $value, $path, [
+          'expected' => 'object',
+          'received' => $received,
+        ])
       );
     }
 
@@ -85,11 +89,7 @@ final class ObjectSchema extends CoercibleSchema {
       foreach ($value as $key => $val) {
         if (!isset($this->shape[$key])) {
           $fieldPath = array_merge($path, [$key]);
-          $issues[] = new Issue(
-            path: $fieldPath,
-            message: 'Unrecognized key in object',
-            code: 'unrecognized_keys'
-          );
+          $issues[] = $this->issue('unrecognized_keys', 'Unrecognized key in object', $val, $fieldPath, ['key' => $key]);
         }
       }
     } else if ($this->catchall !== null) {

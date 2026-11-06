@@ -170,7 +170,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
     $this->assertCount(1, $result->issues);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected object or associative array, received indexed array', $result->issues[0]->message);
+    $this->assertSame('Expected object or associative array, received list', $result->issues[0]->message);
   }
 
   public function test_coerce_WithEmptyArray_ShouldFailWithInvalidType(): void {
@@ -1096,5 +1096,56 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
       $this->assertSame(['address', 'city'], $exception->getFirstIssue()->path);
       $this->assertTrue($exception->hasIssueAt('address.city'));
     }
+  }
+
+  public function test_messages_WithCoercedListClosure_ShouldReceiveListParams(): void {
+    $received = null;
+    $schema = (new ObjectSchema())->coerce()->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse([1, 2]);
+
+    $this->assertSame('custom', $result->issues[0]->message);
+    $this->assertSame([[1, 2], ['expected' => 'object', 'received' => 'list']], $received);
+  }
+
+  public function test_messages_WithUnrecognizedKeysString_ShouldUseCustomMessage(): void {
+    $schema = (new ObjectSchema(['name' => new StringSchema(), 'age' => new IntegerSchema()]))->strict()->messages(['unrecognized_keys' => 'Chave desconhecida']);
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 5]);
+
+    $this->assertSame('unrecognized_keys', $result->issues[0]->code);
+    $this->assertSame('Chave desconhecida', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithUnrecognizedKeysClosure_ShouldReceiveExtraValueAndKey(): void {
+    $received = null;
+    $schema = (new ObjectSchema(['name' => new StringSchema(), 'age' => new IntegerSchema()]))->strict()->messages([
+      'unrecognized_keys' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 5]);
+
+    $this->assertSame(['extra'], $result->issues[0]->path);
+    $this->assertSame([5, ['key' => 'extra']], $received);
+  }
+
+  public function test_messages_OnShapeField_ShouldUseFieldMessageWithFieldPath(): void {
+    $schema = new ObjectSchema(['age' => (new IntegerSchema())->messages(['required' => 'Informe a idade'])]);
+
+    $direct = $schema->safeParse((object) []);
+    $roundTrip = $schema->partial()->required()->safeParse((object) []);
+
+    $this->assertSame(['age'], $direct->issues[0]->path);
+    $this->assertSame('Informe a idade', $direct->issues[0]->message);
+    $this->assertSame(['age'], $roundTrip->issues[0]->path);
+    $this->assertSame('Informe a idade', $roundTrip->issues[0]->message);
   }
 }

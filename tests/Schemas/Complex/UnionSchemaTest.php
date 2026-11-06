@@ -18,6 +18,7 @@ use Esliph\Validator\Schemas\Primitive\StringSchema;
 use Esliph\Validator\Tests\Schemas\BaseSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 use ReflectionMethod;
 use ReflectionProperty;
@@ -887,5 +888,60 @@ class UnionSchemaTest extends BaseSchemaTestCase {
    */
   private function readMembers(UnionSchema $schema): array {
     return (new ReflectionProperty(UnionSchema::class, 'schemas'))->getValue($schema);
+  }
+
+  #[Override]
+  protected function emitsInvalidType(): bool {
+    return false;
+  }
+
+  public function test_messages_WithInvalidUnionString_ShouldUseCustomMessage(): void {
+    $result = V::union(V::string(), V::int())->messages(['invalid_union' => 'nenhuma'])->safeParse([]);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
+    $this->assertSame('nenhuma', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidUnionClosure_ShouldReceiveValueAndEmptyParams(): void {
+    $received = null;
+    $schema = V::union(V::string(), V::int())->messages([
+      'invalid_union' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse(1.5);
+
+    $this->assertSame([1.5, []], $received);
+  }
+
+  public function test_messages_WithDirtyMember_ShouldReturnMemberCustomMessage(): void {
+    $schema = V::union(
+      V::object(['a' => V::int()->messages(['invalid_type' => 'a inválido'])]),
+      V::int()
+    )->messages(['invalid_union' => 'nenhuma']);
+
+    $result = $schema->safeParse((object) ['a' => 'x']);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('a inválido', $result->issues[0]->message);
+    $this->assertSame(['a'], $result->issues[0]->path);
+  }
+
+  public function test_messages_RequiredOnMember_ShouldNotOverrideUnionRequired(): void {
+    $result = V::union(V::string()->messages(['required' => 'A']), V::int())->safeParse(null);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame('Value is required', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeCode_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'invalid_type'; allowed: required, invalid_union");
+
+    V::union(V::string(), V::int())->messages(['invalid_type' => 'x']);
   }
 }

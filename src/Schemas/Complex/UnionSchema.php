@@ -80,12 +80,6 @@ final class UnionSchema extends Schema {
       return $firstDirty;
     }
 
-    return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Invalid input',
-        code: 'invalid_union'
-      )
-    );
+    return ParseResult::fail($this->issue('invalid_union', 'Invalid input', $value, $path));
   }
 }

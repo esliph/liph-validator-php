@@ -152,4 +152,36 @@ class LiteralSchemaTest extends BaseSchemaTestCase {
   public function test_literal_FromFactory_ShouldReturnLiteralSchema(): void {
     $this->assertInstanceOf(LiteralSchema::class, V::literal('a'));
   }
+
+  #[Override]
+  protected function emitsInvalidType(): bool {
+    return false;
+  }
+
+  public function test_messages_WithInvalidLiteralString_ShouldUseCustomMessage(): void {
+    $result = (new LiteralSchema('active'))->messages(['invalid_literal' => 'Só active'])->safeParse('b');
+
+    $this->assertSame('invalid_literal', $result->issues[0]->code);
+    $this->assertSame('Só active', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidLiteralClosure_ShouldReceiveValueAndLiteral(): void {
+    $received = null;
+    $schema = (new LiteralSchema('active'))->messages([
+      'invalid_literal' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('b');
+
+    $this->assertSame(['b', ['value' => 'active']], $received);
+  }
+
+  public function test_parseType_WithOtherValue_ShouldKeepDefaultMessage(): void {
+    $result = (new LiteralSchema('active'))->safeParse('b');
+
+    $this->assertSame("Expected literal 'active'", $result->issues[0]->message);
+  }
 }

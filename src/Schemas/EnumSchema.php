@@ -2,7 +2,6 @@
 
 namespace Esliph\Validator\Schemas;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 use BackedEnum;
 use InvalidArgumentException;
@@ -52,13 +51,18 @@ final class EnumSchema extends Schema {
   }
 
   #[Override]
+  protected static function messageCodes(): array {
+    return ['required', 'invalid_enum_value'];
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     if ($this->enumClass === null) {
       if (in_array($value, $this->values, true)) {
         return ParseResult::ok($value);
       }
 
-      return $this->failure($path);
+      return $this->failure($value, $path);
     }
 
     if ($value instanceof $this->enumClass) {
@@ -75,19 +79,15 @@ final class EnumSchema extends Schema {
       }
     }
 
-    return $this->failure($path);
+    return $this->failure($value, $path);
   }
 
   /**
    * @param string[] $path
    */
-  private function failure(array $path): ParseResult {
+  private function failure(mixed $value, array $path): ParseResult {
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: $this->failureMessage,
-        code: 'invalid_enum_value'
-      )
+      $this->issue('invalid_enum_value', $this->failureMessage, $value, $path, ['values' => $this->values])
     );
   }
 

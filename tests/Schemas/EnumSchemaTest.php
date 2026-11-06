@@ -208,4 +208,44 @@ class EnumSchemaTest extends BaseSchemaTestCase {
   public function test_enum_FromFactory_ShouldReturnEnumSchema(): void {
     $this->assertInstanceOf(EnumSchema::class, V::enum(['a']));
   }
+
+  #[Override]
+  protected function emitsInvalidType(): bool {
+    return false;
+  }
+
+  public function test_messages_WithInvalidEnumValueString_ShouldUseCustomMessage(): void {
+    $result = (new EnumSchema(['a', 'b', 1]))->messages(['invalid_enum_value' => 'Fora da lista'])->safeParse('z');
+
+    $this->assertSame('invalid_enum_value', $result->issues[0]->code);
+    $this->assertSame('Fora da lista', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidEnumValueClosure_ShouldReceiveValueAndValues(): void {
+    $received = null;
+    $schema = (new EnumSchema(['a', 'b', 1]))->messages([
+      'invalid_enum_value' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('z');
+
+    $this->assertSame(['z', ['values' => ['a', 'b', 1]]], $received);
+  }
+
+  public function test_messages_WithBackedEnumClosure_ShouldReceiveBackingValues(): void {
+    $received = null;
+    $schema = (new EnumSchema(StringBacked::class))->messages([
+      'invalid_enum_value' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse('z');
+
+    $this->assertSame(['z', ['values' => ['active', 'inactive']]], $received);
+  }
 }
