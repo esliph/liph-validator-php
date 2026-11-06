@@ -27,7 +27,7 @@ abstract class Schema {
 
     $this->transforms = array_values($this->transforms);
 
-    if ($this->hasDefault && is_object($this->default)) {
+    if ($this->hasDefault && self::isCloneableDefault($this->default)) {
       $this->default = clone $this->default;
     }
   }
@@ -181,11 +181,20 @@ abstract class Schema {
       return ($this->default)();
     }
 
-    if (is_object($this->default)) {
+    if (self::isCloneableDefault($this->default)) {
       return clone $this->default;
     }
 
     return $this->default;
+  }
+
+  /**
+   * Case de enum é singleton e o PHP proíbe cloná-lo.
+   *
+   * @phpstan-assert-if-true object $value
+   */
+  private static function isCloneableDefault(mixed $value): bool {
+    return is_object($value) && !$value instanceof UnitEnum;
   }
 
   protected function applyTransforms(mixed $value): mixed {

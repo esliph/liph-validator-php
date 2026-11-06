@@ -196,6 +196,15 @@ class EnumSchemaTest extends BaseSchemaTestCase {
     $this->assertSame([0, 42], V::enum(IntBacked::class)->getValues());
   }
 
+  public function test_default_WithEnumCase_ShouldReturnSameCase(): void {
+    $schema = V::enum(StringBacked::class)->_default(StringBacked::Active)->optional();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame(StringBacked::Active, $result->data);
+  }
+
   public function test_enum_FromFactory_ShouldReturnEnumSchema(): void {
     $this->assertInstanceOf(EnumSchema::class, V::enum(['a']));
   }

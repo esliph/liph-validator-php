@@ -140,6 +140,15 @@ class LiteralSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(StringBacked::Active, V::literal(StringBacked::Active)->getValue());
   }
 
+  public function test_default_WithEnumCase_ShouldReturnSameCase(): void {
+    $schema = V::literal(StringBacked::Active)->_default(StringBacked::Active)->optional();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame(StringBacked::Active, $result->data);
+  }
+
   public function test_literal_FromFactory_ShouldReturnLiteralSchema(): void {
     $this->assertInstanceOf(LiteralSchema::class, V::literal('a'));
   }
