@@ -539,4 +539,31 @@ class ParseResultTest extends TestCase {
       $this->assertInstanceOf(Issue::class, $issue);
     }
   }
+
+  public function test_dirty_WithIssues_ShouldReturnDirtyFailure(): void {
+    $issues = [new Issue(path: ['a'], message: 'm', code: 'too_small')];
+
+    $result = ParseResult::dirty($issues);
+
+    $this->assertFalse($result->success);
+    $this->assertNull($result->data);
+    $this->assertSame($issues, $result->issues);
+    $this->assertTrue($result->dirty);
+  }
+
+  public function test_ok_ShouldNotBeDirty(): void {
+    $this->assertFalse(ParseResult::ok('x')->dirty);
+  }
+
+  public function test_fail_ShouldNotBeDirty(): void {
+    $issue = new Issue(path: [], message: 'm', code: 'invalid_type');
+
+    $this->assertFalse(ParseResult::fail($issue)->dirty);
+  }
+
+  public function test_fails_ShouldNotBeDirty(): void {
+    $issue = new Issue(path: [], message: 'm', code: 'invalid_type');
+
+    $this->assertFalse(ParseResult::fails([$issue])->dirty);
+  }
 }

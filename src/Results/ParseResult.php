@@ -12,7 +12,9 @@ readonly final class ParseResult {
   private function __construct(
     public bool $success,
     public mixed $data = null,
-    public array $issues = []
+    public array $issues = [],
+    /** @internal Verdadeiro quando a falha aconteceu depois da checagem de tipo. */
+    public bool $dirty = false
   ) {
   }
 
@@ -37,6 +39,21 @@ readonly final class ParseResult {
     return new self(
       success: false,
       issues: $issues
+    );
+  }
+
+  /**
+   * Falha ocorrida depois da checagem de tipo (regras ou filhos). O union usa
+   * a marca para relatar a opção que reconheceu o tipo do valor.
+   *
+   * @internal
+   * @param Issue[] $issues
+   */
+  public static function dirty(array $issues): self {
+    return new self(
+      success: false,
+      issues: $issues,
+      dirty: true
     );
   }
 }

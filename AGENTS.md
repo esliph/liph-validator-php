@@ -53,7 +53,7 @@ Composite schemas call `$child->_parse($v, [...$path, $key])` directly on their 
 
 **Rules and errors:**
 - `Validation\Rule` (readonly): `name`, `code`, `check: Closure(mixed $value, array $params): bool`, `message: string|Closure(mixed, array): string`, `params`. New validations must be created as a `Rule` with parameterized values in `params` (not captured in the closure) and a default message via closure.
-- `Results\ParseResult` (readonly, private constructor): `ok($data)`, `fail(Issue)` for a single issue, `fails(Issue[])` for several.
+- `Results\ParseResult` (readonly, private constructor): `ok($data)`, `fail(Issue)` for a single issue, `fails(Issue[])` for several. `dirty(Issue[])` and the `$dirty` flag are `@internal`: `dirty` is `true` when the failure happened after the type check (rules or children), and it is what the union uses to pick the member it reports.
 - `Errors\Issue`: `path`, `message`, `code`. Codes are free-form strings (no enum); reuse the existing ones (`required`, `invalid_type`, `too_small`, `too_big`, `invalid_format`, `custom` from `refine`, etc. — see `grep -rhoE "code: '[a-z_]+'" src | sort -u`) before inventing a new one.
 - `parse()` throws `ValidatorException` (with path-grouping helpers: `getMessagesByPath`, `getFlatMessages`, `toArray`, `toJson`); `safeParse()` returns `ParseResult`; `isValid()` returns bool.
 
