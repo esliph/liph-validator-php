@@ -15,8 +15,20 @@ class FloatSchemaTest extends NumberSchemaTestCase {
   }
 
   #[Override]
+  protected function expectedTypeLabel(): string {
+    return 'float';
+  }
+
+  #[Override]
   protected function getValidValue(): mixed {
     return 3.14;
+  }
+
+  public function test_parseType_WithString_ShouldDescribeExpectedFloat(): void {
+    $result = (new FloatSchema())->safeParse('abc');
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected float, received string', $result->issues[0]->message);
   }
 
   #[Override]

@@ -14,6 +14,11 @@ class NumberSchemaTest extends NumberSchemaTestCase {
   }
 
   #[Override]
+  protected function expectedTypeLabel(): string {
+    return 'number';
+  }
+
+  #[Override]
   protected function getValidValue(): mixed {
     return 42;
   }
@@ -72,6 +77,7 @@ class NumberSchemaTest extends NumberSchemaTestCase {
     $result = (new NumberSchema())->safeParse(INF);
 
     $this->assertFalse($result->success);
+    $this->assertSame('not_finite', $result->issues[0]->code);
     $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
   }
 
@@ -87,6 +93,13 @@ class NumberSchemaTest extends NumberSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
+  }
+
+  public function test_parseType_WithBool_ShouldDescribeAsBool(): void {
+    $result = (new NumberSchema())->safeParse(true);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected number, received bool', $result->issues[0]->message);
   }
 
   public function test_parseType_WithString_ShouldReject(): void {

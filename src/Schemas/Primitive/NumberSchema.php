@@ -16,7 +16,14 @@ class NumberSchema extends CoercibleSchema {
   private const float MULTIPLE_OF_TOLERANCE = 1e-9;
 
   #[Override]
+  protected static function messageCodes(): array {
+    return [...parent::messageCodes(), 'not_finite'];
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
+    $input = $value;
+
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       // Aritmética de string numérica: inteiro que cabe vira int, o resto vira float.
       $value = $value + 0;
@@ -27,28 +34,28 @@ class NumberSchema extends CoercibleSchema {
     }
 
     if (is_float($value)) {
-      return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $path);
+      return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $input, $path);
     }
 
+    $received = self::describeType($input);
+
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected number, received ' . gettype($value),
-        code: 'invalid_type'
-      )
+      $this->issue('invalid_type', "Expected number, received $received", $input, $path, [
+        'expected' => 'number',
+        'received' => $received,
+      ])
     );
   }
 
   /**
+   * `$value` é o float não finito que vai no texto; `$input`, o valor original
+   * de entrada, que vai para a Closure de mensagem.
+   *
    * @param string[] $path
    */
-  protected function nonFiniteIssue(float $value, array $path): ParseResult {
+  protected function nonFiniteIssue(float $value, mixed $input, array $path): ParseResult {
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: "Expected finite number, received {$value}",
-        code: 'invalid_type'
-      )
+      $this->issue('not_finite', "Expected finite number, received {$value}", $input, $path)
     );
   }
 

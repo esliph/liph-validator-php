@@ -15,8 +15,61 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
   }
 
   #[Override]
+  protected function expectedTypeLabel(): string {
+    return 'int';
+  }
+
+  #[Override]
   protected function getValidValue(): mixed {
     return 42;
+  }
+
+  public function test_parseType_WithString_ShouldDescribeExpectedInt(): void {
+    $result = (new IntegerSchema())->safeParse('abc');
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithDecimalString_ShouldReportDecimalPartAndPassOriginalToClosure(): void {
+    $received = null;
+    $schema = (new IntegerSchema())->coerce();
+    $custom = $schema->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $default = $schema->safeParse('1.5');
+    $custom->safeParse('1.5');
+
+    $this->assertSame('Expected int, received float with decimal part', $default->issues[0]->message);
+    $this->assertSame(['1.5', ['expected' => 'int', 'received' => 'string']], $received);
+  }
+
+  public function test_coerce_WithIntegerStringOutOfRange_ShouldReportRangeAndPassOriginalToClosure(): void {
+    $received = null;
+    $schema = (new IntegerSchema())->coerce();
+    $custom = $schema->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $default = $schema->safeParse('99999999999999999999');
+    $custom->safeParse('99999999999999999999');
+
+    $this->assertSame('Expected int, received number outside the int range', $default->issues[0]->message);
+    $this->assertSame(['99999999999999999999', ['expected' => 'int', 'received' => 'string']], $received);
+  }
+
+  public function test_messages_FollowedByRuleAndCoerce_ShouldKeepCustomMessages(): void {
+    $schema = (new IntegerSchema())->messages(['invalid_type' => 'X'])->min(1)->coerce();
+
+    $this->assertSame('X', $schema->safeParse('abc')->issues[0]->message);
+    $this->assertSame('Must be greater than or equal to 1', $schema->safeParse(0)->issues[0]->message);
   }
 
   #[Override]
@@ -236,7 +289,7 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $result = (new IntegerSchema())->safeParse(INF);
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
   public function test_parseType_WithNaN_ShouldReject(): void {
@@ -245,7 +298,7 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $result = (new IntegerSchema())->safeParse(NAN);
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
   public function test_coerce_WithExponentialString_ShouldPass(): void {

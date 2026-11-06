@@ -21,6 +21,11 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
   abstract protected function createNumberSchema(): NumberSchema;
 
+  /**
+   * Rótulo do tipo esperado, como aparece no texto e no param `expected`.
+   */
+  abstract protected function expectedTypeLabel(): string;
+
   #[Override]
   protected function getDefaultValue(): mixed {
     return 100;
@@ -345,26 +350,72 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
   }
 
   #[DataProvider('provideNonFiniteValues')]
-  public function test_parseType_WithNonFiniteValue_ShouldFailWithInvalidType(float $value): void {
+  public function test_parseType_WithNonFiniteValue_ShouldFailWithNotFinite(float $value): void {
     $result = $this->createNumberSchema()->safeParse($value);
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
   #[DataProvider('provideNonFiniteValues')]
-  public function test_parseType_WithNonFiniteValueAndCoercion_ShouldFailWithInvalidType(float $value): void {
+  public function test_parseType_WithNonFiniteValueAndCoercion_ShouldFailWithNotFinite(float $value): void {
     $result = $this->createNumberSchema()->coerce()->safeParse($value);
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithOverflowingExponentialString_ShouldFailWithInvalidType(): void {
+  public function test_coerce_WithOverflowingExponentialString_ShouldFailWithNotFinite(): void {
     $result = $this->createNumberSchema()->coerce()->safeParse('1e400');
 
     $this->assertFalse($result->success);
+    $this->assertSame('not_finite', $result->issues[0]->code);
+  }
+
+  public function test_messages_WithNotFiniteClosure_ShouldReceiveOriginalValueAndEmptyParams(): void {
+    $received = null;
+    $schema = $this->createNumberSchema()->coerce()->messages([
+      'not_finite' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'finito, por favor';
+      },
+    ]);
+
+    $result = $schema->safeParse('1e400');
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame('finito, por favor', $result->issues[0]->message);
+    $this->assertSame(['1e400', []], $received);
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_messages_WithNotFiniteString_ShouldUseCustomMessage(float $value): void {
+    $schema = $this->createNumberSchema()->messages(['not_finite' => 'finito, por favor']);
+
+    $result = $schema->safeParse($value);
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame('finito, por favor', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveExpectedAndReceived(): void {
+    $schema = $this->createNumberSchema()->messages([
+      'invalid_type' => fn(mixed $value, array $params): string => (string) json_encode($params),
+    ]);
+
+    $result = $schema->safeParse('abc');
+
     $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame(
+      '{"expected":"' . $this->expectedTypeLabel() . '","received":"string"}',
+      $result->issues[0]->message
+    );
+  }
+
+  public function test_parseType_WithBool_ShouldDescribeTypeWithDebugTypeVocabulary(): void {
+    $result = $this->createNumberSchema()->safeParse(true);
+
+    $this->assertSame('Expected ' . $this->expectedTypeLabel() . ', received bool', $result->issues[0]->message);
   }
 
   public function test_multipleOf_WithFractionalDivisorAndIntegerMultiple_ShouldPass(): void {
