@@ -14,6 +14,8 @@ use Esliph\Validator\Schemas\Primitive\StringSchema;
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
+use LogicException;
 use Override;
 
 class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
@@ -666,13 +668,23 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Dan', $result->data->name);
   }
 
-  public function test_pick_WithUnknownKeys_ShouldIgnoreThem(): void {
-    $schema = $this->createUserSchema()->pick(['name', 'doesNotExist']);
+  public function test_pick_WithUnknownKey_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("unknown key 'doesNotExist' in object shape");
 
-    $result = $schema->safeParse((object) ['name' => 'Dan']);
+    $this->createUserSchema()->pick(['name', 'doesNotExist']);
+  }
 
-    $this->assertTrue($result->success);
-    $this->assertFalse(property_exists($result->data, 'doesNotExist'));
+  public function test_pick_WithKeysOutOfOrder_ShouldFollowShapeOrder(): void {
+    $schema = $this->createUserSchema()->pick(['age', 'name']);
+
+    $this->assertSame(['name', 'age'], array_keys($schema->getShape()));
+  }
+
+  public function test_pick_WithEmptyList_ShouldReturnEmptyShape(): void {
+    $schema = $this->createUserSchema()->pick([]);
+
+    $this->assertSame([], $schema->getShape());
   }
 
   public function test_pick_OnStrictSchema_ShouldKeepStrictAndRejectNonPickedKeys(): void {
@@ -704,13 +716,110 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertEquals((object) ['name' => 'Dan'], $result->data);
   }
 
-  public function test_omit_WithUnknownKey_ShouldKeepShapeIntact(): void {
-    $schema = $this->createUserSchema()->omit(['doesNotExist']);
+  public function test_omit_WithUnknownKey_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("unknown key 'doesNotExist' in object shape");
 
-    $result = $schema->safeParse((object) ['name' => 'Dan']);
+    $this->createUserSchema()->omit(['doesNotExist']);
+  }
 
-    $this->assertFalse($result->success);
-    $this->assertSame(['age'], $result->issues[0]->path);
+  public function test_omit_WithEmptyList_ShouldKeepShape(): void {
+    $schema = $this->createUserSchema()->omit([]);
+
+    $this->assertSame(['name', 'age'], array_keys($schema->getShape()));
+  }
+
+  public function test_construct_WithNonSchemaValue_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("object shape value for key 'age' must be a Schema");
+
+    // @phpstan-ignore argument.type
+    new ObjectSchema(['name' => new StringSchema(), 'age' => 'int']);
+  }
+
+  public function test_shape_WithNonSchemaValue_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("object shape value for key 'age' must be a Schema");
+
+    // @phpstan-ignore argument.type
+    $this->createUserSchema()->shape(['name' => new StringSchema(), 'age' => 'int']);
+  }
+
+  public function test_extend_WithNonSchemaValue_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("object shape value for key 'age' must be a Schema");
+
+    // @phpstan-ignore argument.type
+    $this->createUserSchema()->extend(['name' => new StringSchema(), 'age' => 'int']);
+  }
+
+  public function test_getShape_ShouldReturnCurrentShape(): void {
+    $name = new StringSchema();
+
+    $this->assertSame(['name' => $name], (new ObjectSchema(['name' => $name]))->getShape());
+  }
+
+  /**
+   * @return iterable<string, array{Closure(ObjectSchema): ObjectSchema}>
+   */
+  public static function provideDerivations(): iterable {
+    yield 'pick' => [fn(ObjectSchema $s) => $s->pick(['name'])];
+    yield 'omit' => [fn(ObjectSchema $s) => $s->omit(['age'])];
+    yield 'extend' => [fn(ObjectSchema $s) => $s->extend(['x' => new StringSchema()])];
+    yield 'merge' => [fn(ObjectSchema $s) => $s->merge(new ObjectSchema(['x' => new StringSchema()]))];
+    yield 'partial' => [fn(ObjectSchema $s) => $s->partial()];
+    yield 'required' => [fn(ObjectSchema $s) => $s->required()];
+    yield 'shape' => [fn(ObjectSchema $s) => $s->shape(['x' => new StringSchema()])];
+  }
+
+  /**
+   * @param Closure(ObjectSchema): ObjectSchema $derive
+   */
+  #[DataProvider('provideDerivations')]
+  public function test_derive_AfterRefine_ShouldThrowLogicException(Closure $derive): void {
+    $base = $this->createUserSchema()->refine(fn(mixed $v): bool => true);
+
+    $this->expectException(LogicException::class);
+    $this->expectExceptionMessage('cannot derive an object schema after refine() or transform()');
+
+    $derive($base);
+  }
+
+  /**
+   * @param Closure(ObjectSchema): ObjectSchema $derive
+   */
+  #[DataProvider('provideDerivations')]
+  public function test_derive_AfterTransform_ShouldThrowLogicException(Closure $derive): void {
+    $base = $this->createUserSchema()->transform(fn(mixed $v): mixed => $v);
+
+    $this->expectException(LogicException::class);
+    $this->expectExceptionMessage('cannot derive an object schema after refine() or transform()');
+
+    $derive($base);
+  }
+
+  public function test_pick_AfterAsArray_ShouldThrowLogicException(): void {
+    $this->expectException(LogicException::class);
+    $this->expectExceptionMessage('cannot derive an object schema after refine() or transform()');
+
+    $this->createUserSchema()->asArray()->pick(['name']);
+  }
+
+  public function test_optional_AfterRefine_ShouldStillWork(): void {
+    $schema = $this->createUserSchema()->refine(fn(mixed $v): bool => true)->optional();
+
+    $this->assertTrue($schema->safeParse(null)->success);
+  }
+
+  public function test_derive_WithRefinedChild_ShouldNotThrow(): void {
+    $schema = new ObjectSchema([
+      'name' => (new StringSchema())->refine(fn(mixed $v): bool => true),
+      'age' => new IntegerSchema(),
+    ]);
+
+    $result = $schema->pick(['name'])->safeParse((object) ['name' => 'Dan']);
+
+    $this->assertTrue($result->success);
   }
 
   public function test_omit_ShouldNotModifyOriginalSchema(): void {
