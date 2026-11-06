@@ -4,6 +4,8 @@ namespace Esliph\Validator\Tests\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
+use Esliph\Validator\Schemas\Schema;
+use Esliph\Validator\Validation\Rule;
 
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
@@ -11,6 +13,7 @@ use Closure;
 use InvalidArgumentException;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionProperty;
 
 abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
@@ -262,7 +265,9 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(5);
 
     $this->assertFalse($result->success);
-    $this->assertSame('out_of_range', $result->issues[0]->code);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_small', $result->issues[0]->code);
+    $this->assertSame('Must be between 10 and 20', $result->issues[0]->message);
   }
 
   public function test_between_WithValueAboveMax_ShouldFail(): void {
@@ -271,16 +276,101 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(25);
 
     $this->assertFalse($result->success);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_big', $result->issues[0]->code);
+    $this->assertSame('Must be between 10 and 20', $result->issues[0]->message);
   }
 
   public function test_between_WithCustomMessage_ShouldUseCustomMessage(): void {
     $customMessage = 'Value must be between 10 and 20';
     $schema = $this->createNumberSchema()->between(10, 20, $customMessage);
 
-    $result = $schema->safeParse(5);
+    $below = $schema->safeParse(5);
+    $above = $schema->safeParse(25);
 
-    $this->assertFalse($result->success);
-    $this->assertSame($customMessage, $result->issues[0]->message);
+    $this->assertFalse($below->success);
+    $this->assertSame($customMessage, $below->issues[0]->message);
+    $this->assertFalse($above->success);
+    $this->assertSame($customMessage, $above->issues[0]->message);
+  }
+
+  public function test_between_WithClosureMessage_ShouldReceiveBothBoundsOnEachSide(): void {
+    $schema = $this->createNumberSchema()->between(
+      10,
+      20,
+      fn(mixed $value, array $params): string => "{$params['min']}..{$params['max']}"
+    );
+
+    $this->assertSame('10..20', $schema->safeParse(5)->issues[0]->message);
+    $this->assertSame('10..20', $schema->safeParse(25)->issues[0]->message);
+  }
+
+  public function test_between_WithMinGreaterThanMax_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('between min must be less than or equal to max');
+
+    $this->createNumberSchema()->between(5, 1);
+  }
+
+  public function test_between_WithEqualBounds_ShouldAcceptBound(): void {
+    $schema = $this->createNumberSchema()->between(3, 3);
+
+    $this->assertTrue($schema->safeParse(3)->success);
+  }
+
+  /**
+   * @return iterable<string, array{Closure(NumberSchema): mixed, string}>
+   */
+  public static function provideBoundMethods(): iterable {
+    foreach (['NAN' => NAN, 'INF' => INF, '-INF' => -INF] as $label => $n) {
+      yield "gt $label" => [fn(NumberSchema $s) => $s->gt($n), 'gt'];
+      yield "gte $label" => [fn(NumberSchema $s) => $s->gte($n), 'gte'];
+      yield "lt $label" => [fn(NumberSchema $s) => $s->lt($n), 'lt'];
+      yield "lte $label" => [fn(NumberSchema $s) => $s->lte($n), 'lte'];
+      yield "min $label" => [fn(NumberSchema $s) => $s->min($n), 'min'];
+      yield "max $label" => [fn(NumberSchema $s) => $s->max($n), 'max'];
+      yield "between min $label" => [fn(NumberSchema $s) => $s->between($n, 10), 'between'];
+      yield "between max $label" => [fn(NumberSchema $s) => $s->between(0, $n), 'between'];
+    }
+  }
+
+  /**
+   * @param Closure(NumberSchema): mixed $call
+   */
+  #[DataProvider('provideBoundMethods')]
+  public function test_bound_WithNonFiniteBound_ShouldThrow(Closure $call, string $method): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("$method bound must be a finite number");
+
+    $call($this->createNumberSchema());
+  }
+
+  /**
+   * @return iterable<string, array{Closure(NumberSchema): NumberSchema, list<string>}>
+   */
+  public static function provideRuleNames(): iterable {
+    yield 'min' => [fn(NumberSchema $s) => $s->min(1), ['min']];
+    yield 'max' => [fn(NumberSchema $s) => $s->max(1), ['max']];
+    yield 'positive' => [fn(NumberSchema $s) => $s->positive(), ['positive']];
+    yield 'nonnegative' => [fn(NumberSchema $s) => $s->nonnegative(), ['nonnegative']];
+    yield 'negative' => [fn(NumberSchema $s) => $s->negative(), ['negative']];
+    yield 'nonpositive' => [fn(NumberSchema $s) => $s->nonpositive(), ['nonpositive']];
+    yield 'between' => [fn(NumberSchema $s) => $s->between(1, 2), ['between_min', 'between_max']];
+  }
+
+  /**
+   * @param Closure(NumberSchema): NumberSchema $build
+   * @param list<string> $expected
+   */
+  #[DataProvider('provideRuleNames')]
+  public function test_rules_ShouldUseOwnRuleNames(Closure $build, array $expected): void {
+    $schema = $build($this->createNumberSchema());
+
+    /** @var Rule[] $rules */
+    $rules = (new ReflectionProperty(Schema::class, 'rules'))->getValue($schema);
+    $names = array_map(fn(Rule $rule): string => $rule->name, $rules);
+
+    $this->assertSame($expected, $names);
   }
 
   public function test_multipleOf_WithMultipleValue_ShouldPass(): void {

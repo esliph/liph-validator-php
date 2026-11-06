@@ -58,15 +58,42 @@ class NumberSchema extends CoercibleSchema {
     );
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function min(int|float $min, string|Closure|null $message = null): static {
-    return $this->gte($min, $message);
+    self::assertFiniteBound($min, 'min');
+
+    return $this->addRule(new Rule(
+      name: 'min',
+      code: 'too_small',
+      check: static fn(int|float $value, array $params): bool => $value >= $params['min'],
+      message: $message ?? static fn(int|float $value, array $params): string => "Must be greater than or equal to {$params['min']}",
+      params: ['min' => $min]
+    ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function max(int|float $max, string|Closure|null $message = null): static {
-    return $this->lte($max, $message);
+    self::assertFiniteBound($max, 'max');
+
+    return $this->addRule(new Rule(
+      name: 'max',
+      code: 'too_big',
+      check: static fn(int|float $value, array $params): bool => $value <= $params['max'],
+      message: $message ?? static fn(int|float $value, array $params): string => "Must be less than or equal to {$params['max']}",
+      params: ['max' => $max]
+    ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function gt(int|float $min, string|Closure|null $message = null): static {
+    self::assertFiniteBound($min, 'gt');
+
     return $this->addRule(new Rule(
       name: 'gt',
       code: 'too_small',
@@ -76,7 +103,12 @@ class NumberSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function gte(int|float $min, string|Closure|null $message = null): static {
+    self::assertFiniteBound($min, 'gte');
+
     return $this->addRule(new Rule(
       name: 'gte',
       code: 'too_small',
@@ -86,7 +118,12 @@ class NumberSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function lt(int|float $max, string|Closure|null $message = null): static {
+    self::assertFiniteBound($max, 'lt');
+
     return $this->addRule(new Rule(
       name: 'lt',
       code: 'too_big',
@@ -96,7 +133,12 @@ class NumberSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
   public function lte(int|float $max, string|Closure|null $message = null): static {
+    self::assertFiniteBound($max, 'lte');
+
     return $this->addRule(new Rule(
       name: 'lte',
       code: 'too_big',
@@ -107,29 +149,86 @@ class NumberSchema extends CoercibleSchema {
   }
 
   public function nonnegative(string|Closure|null $message = null): static {
-    return $this->gte(0, $message ?? 'Must be a non-negative number');
+    return $this->addRule(new Rule(
+      name: 'nonnegative',
+      code: 'too_small',
+      check: static fn(int|float $value, array $params): bool => $value >= $params['min'],
+      message: $message ?? 'Must be a non-negative number',
+      params: ['min' => 0]
+    ));
   }
 
   public function nonpositive(string|Closure|null $message = null): static {
-    return $this->lte(0, $message ?? 'Must be a non-positive number');
+    return $this->addRule(new Rule(
+      name: 'nonpositive',
+      code: 'too_big',
+      check: static fn(int|float $value, array $params): bool => $value <= $params['max'],
+      message: $message ?? 'Must be a non-positive number',
+      params: ['max' => 0]
+    ));
   }
 
   public function positive(string|Closure|null $message = null): static {
-    return $this->gt(0, $message ?? 'Must be a positive number');
+    return $this->addRule(new Rule(
+      name: 'positive',
+      code: 'too_small',
+      check: static fn(int|float $value, array $params): bool => $value > $params['min'],
+      message: $message ?? 'Must be a positive number',
+      params: ['min' => 0]
+    ));
   }
 
   public function negative(string|Closure|null $message = null): static {
-    return $this->lt(0, $message ?? 'Must be a negative number');
+    return $this->addRule(new Rule(
+      name: 'negative',
+      code: 'too_big',
+      check: static fn(int|float $value, array $params): bool => $value < $params['max'],
+      message: $message ?? 'Must be a negative number',
+      params: ['max' => 0]
+    ));
   }
 
+  /**
+   * Vira duas regras, `between_min` (`too_small`) e `between_max` (`too_big`),
+   * com os dois limites em params e a mesma mensagem.
+   *
+   * @throws InvalidArgumentException se algum limite não for finito ou se min > max
+   */
   public function between(int|float $min, int|float $max, string|Closure|null $message = null): static {
-    return $this->addRule(new Rule(
-      name: 'between',
-      code: 'out_of_range',
-      check: static fn(int|float $value, array $params): bool => $value >= $params['min'] && $value <= $params['max'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be between {$params['min']} and {$params['max']}",
-      params: ['min' => $min, 'max' => $max]
-    ));
+    self::assertFiniteBound($min, 'between');
+    self::assertFiniteBound($max, 'between');
+
+    if ($min > $max) {
+      throw new InvalidArgumentException('between min must be less than or equal to max');
+    }
+
+    $params = ['min' => $min, 'max' => $max];
+    $message ??= static fn(int|float $value, array $params): string => "Must be between {$params['min']} and {$params['max']}";
+
+    return $this
+      ->addRule(new Rule(
+        name: 'between_min',
+        code: 'too_small',
+        check: static fn(int|float $value, array $params): bool => $value >= $params['min'],
+        message: $message,
+        params: $params
+      ))
+      ->addRule(new Rule(
+        name: 'between_max',
+        code: 'too_big',
+        check: static fn(int|float $value, array $params): bool => $value <= $params['max'],
+        message: $message,
+        params: $params
+      ));
+  }
+
+  /**
+   * @throws InvalidArgumentException se o limite não for finito
+   */
+  private static function assertFiniteBound(int|float $n, string $method): void {
+    if (!is_finite($n)) {
+      throw new InvalidArgumentException("$method bound must be a finite number");
+    }
   }
 
   /**
