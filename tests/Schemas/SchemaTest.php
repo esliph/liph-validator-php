@@ -11,7 +11,9 @@ use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Errors\ValidatorException;
 use InvalidArgumentException;
+use Esliph\Validator\V;
 use Override;
+use RuntimeException;
 
 class TestSchema extends Schema {
 
@@ -899,5 +901,23 @@ class SchemaTest extends TestCase {
         return ParseResult::ok($value ?? 'reached parseType');
       }
     };
+  }
+
+  public function test_safeParse_WithThrowingRefineCheck_ShouldPropagateException(): void {
+    $schema = V::string()->refine(fn(mixed $v): bool => throw new RuntimeException('boom'));
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('boom');
+
+    $schema->safeParse('a');
+  }
+
+  public function test_isValid_WithThrowingTransform_ShouldPropagateException(): void {
+    $schema = V::string()->transform(fn(mixed $v): mixed => throw new RuntimeException('boom'));
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('boom');
+
+    $schema->isValid('a');
   }
 }

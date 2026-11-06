@@ -116,6 +116,12 @@ abstract class Schema {
     return $issues;
   }
 
+  /**
+   * Só falhas de validação viram ValidatorException. Exceções lançadas por check
+   * de regra, Closure de mensagem, transform ou default se propagam sem tratamento.
+   *
+   * @throws ValidatorException se o valor não passar na validação
+   */
   public function parse(mixed $value): mixed {
     $result = $this->safeParse($value);
 
@@ -126,10 +132,19 @@ abstract class Schema {
     return $result->data;
   }
 
+  /**
+   * Só falhas de validação viram `false`. Exceções lançadas por check de regra,
+   * Closure de mensagem, transform ou default se propagam sem tratamento.
+   */
   public function isValid(mixed $value): bool {
     return $this->safeParse($value)->success;
   }
 
+  /**
+   * Só falhas de validação viram ParseResult com issues. Exceções lançadas por
+   * check de regra, Closure de mensagem, transform ou default se propagam sem
+   * tratamento.
+   */
   public function safeParse(mixed $value): ParseResult {
     return $this->_parse($value, []);
   }
