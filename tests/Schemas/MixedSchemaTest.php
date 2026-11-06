@@ -43,7 +43,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => is_array($value);
+    return fn(mixed $value): bool => is_array($value);
   }
 
   #[DataProvider('provideAllInputTypes')]
@@ -192,7 +192,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
   public function test_optional_WithNullAndRefineAndTransform_ShouldSkipBoth(): void {
     $schema = (new MixedSchema())
       ->optional()
-      ->refine(fn(mixed $value, array $params): bool => false, 'never passes')
+      ->refine(fn(mixed $value): bool => false, 'never passes')
       ->transform(fn(mixed $value): string => 'transformed');
 
     $result = $schema->safeParse(null);
@@ -273,7 +273,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
       ->_default(5)
       ->transform(fn(mixed $value): int => $value * 2);
 
-    $failing = $schema->refine(fn(mixed $value, array $params): bool => $value > 10, 'too low');
+    $failing = $schema->refine(fn(mixed $value): bool => $value > 10, 'too low');
 
     $this->assertSame(10, $schema->safeParse(null)->data);
     $this->assertFalse($failing->safeParse(null)->success);
@@ -290,7 +290,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_refine_WithPassingCheck_ShouldReturnValue(): void {
-    $schema = (new MixedSchema())->refine(fn(mixed $value, array $params): bool => is_int($value));
+    $schema = (new MixedSchema())->refine(fn(mixed $value): bool => is_int($value));
 
     $result = $schema->safeParse(7);
 
@@ -300,7 +300,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
 
   public function test_refine_WithFailingCheck_ShouldFailWithCustomCode(): void {
     $schema = (new MixedSchema())->refine(
-      fn(mixed $value, array $params): bool => is_int($value),
+      fn(mixed $value): bool => is_int($value),
       'Must be an integer'
     );
 
@@ -315,7 +315,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
 
   public function test_refine_WithClosureMessage_ShouldResolveMessageFromValue(): void {
     $schema = (new MixedSchema())->refine(
-      fn(mixed $value, array $params): bool => false,
+      fn(mixed $value): bool => false,
       fn(mixed $value, array $params): string => 'Rejected ' . gettype($value)
     );
 
@@ -326,7 +326,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_refine_WithoutMessage_ShouldUseDefaultMessage(): void {
-    $schema = (new MixedSchema())->refine(fn(mixed $value, array $params): bool => false);
+    $schema = (new MixedSchema())->refine(fn(mixed $value): bool => false);
 
     $result = $schema->safeParse('anything');
 
@@ -334,25 +334,45 @@ class MixedSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('Invalid value', $result->issues[0]->message);
   }
 
-  public function test_refine_ShouldReceiveOriginalValueAndEmptyParams(): void {
-    $received = [];
+  public function test_refine_ShouldCallCheckWithOnlyTheValue(): void {
+    $received = null;
     $object = new stdClass();
-    $schema = (new MixedSchema())->refine(function (mixed $value, array $params) use (&$received): bool {
-      $received = [$value, $params];
+    $schema = (new MixedSchema())->refine(function (mixed ...$args) use (&$received): bool {
+      $received = $args;
       return true;
     });
 
     $schema->safeParse($object);
 
-    $this->assertSame($object, $received[0]);
-    $this->assertSame([], $received[1]);
+    $this->assertSame([$object], $received);
+  }
+
+  public function test_refine_WithClosureMessage_ShouldReceiveValueAndEmptyParams(): void {
+    $received = null;
+    $schema = (new MixedSchema())->refine(
+      fn(mixed $value): bool => false,
+      function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      }
+    );
+
+    $schema->safeParse('x');
+
+    $this->assertSame(['x', []], $received);
+  }
+
+  public function test_refine_WithTruthyNonBoolCheck_ShouldPass(): void {
+    $schema = (new MixedSchema())->refine(fn(mixed $value): int => 1);
+
+    $this->assertTrue($schema->safeParse('x')->success);
   }
 
   public function test_refine_WithMultipleFailingChecks_ShouldReportAllIssues(): void {
     $schema = (new MixedSchema())
-      ->refine(fn(mixed $value, array $params): bool => is_int($value), 'not int')
-      ->refine(fn(mixed $value, array $params): bool => $value !== 'bad', 'is bad')
-      ->refine(fn(mixed $value, array $params): bool => true, 'never shown');
+      ->refine(fn(mixed $value): bool => is_int($value), 'not int')
+      ->refine(fn(mixed $value): bool => $value !== 'bad', 'is bad')
+      ->refine(fn(mixed $value): bool => true, 'never shown');
 
     $result = $schema->safeParse('bad');
 
@@ -369,7 +389,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
         $called = true;
         return $value;
       })
-      ->refine(fn(mixed $value, array $params): bool => false, 'fail');
+      ->refine(fn(mixed $value): bool => false, 'fail');
 
     $result = $schema->safeParse('value');
 
@@ -380,7 +400,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
   public function test_refine_ShouldNotMutateOriginalSchema(): void {
     $base = new MixedSchema();
 
-    $refined = $base->refine(fn(mixed $value, array $params): bool => false, 'fail');
+    $refined = $base->refine(fn(mixed $value): bool => false, 'fail');
 
     $this->assertFalse($refined->isValid('value'));
     $this->assertTrue($base->isValid('value'));
@@ -410,7 +430,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
   public function test_transform_ShouldRunAfterRefine(): void {
     $schema = (new MixedSchema())
       ->transform(fn(mixed $value): string => 'transformed')
-      ->refine(fn(mixed $value, array $params): bool => $value === 'original', 'refine saw transformed value');
+      ->refine(fn(mixed $value): bool => $value === 'original', 'refine saw transformed value');
 
     $result = $schema->safeParse('original');
 
@@ -429,11 +449,11 @@ class MixedSchemaTest extends BaseSchemaTestCase {
 
   public function test_clone_WithRulesAndTransforms_ShouldKeepBehaviorIndependent(): void {
     $schema = (new MixedSchema())
-      ->refine(fn(mixed $value, array $params): bool => is_string($value), 'not string')
+      ->refine(fn(mixed $value): bool => is_string($value), 'not string')
       ->transform(fn(string $value): string => strtoupper($value));
 
     $cloned = clone $schema;
-    $extended = $cloned->refine(fn(mixed $value, array $params): bool => strlen($value) > 3, 'too short');
+    $extended = $cloned->refine(fn(mixed $value): bool => strlen($value) > 3, 'too short');
 
     $this->assertSame('ABC', $schema->parse('abc'));
     $this->assertSame('ABC', $cloned->parse('abc'));
@@ -489,7 +509,7 @@ class MixedSchemaTest extends BaseSchemaTestCase {
 
   public function test_validateType_AsObjectFieldWithFailingRefine_ShouldReportFieldPath(): void {
     $schema = V::object([
-      'meta' => V::mixed()->refine(fn(mixed $value, array $params): bool => is_array($value), 'must be array'),
+      'meta' => V::mixed()->refine(fn(mixed $value): bool => is_array($value), 'must be array'),
     ]);
     $payload = new stdClass();
     $payload->meta = 'scalar';

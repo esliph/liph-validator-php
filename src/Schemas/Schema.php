@@ -138,11 +138,17 @@ abstract class Schema {
     return $callable($this);
   }
 
+  /**
+   * O check recebe só o valor, então aceita callables nativos de um argumento
+   * (`is_numeric(...)`). A Closure de mensagem continua recebendo `($value, [])`.
+   *
+   * @param Closure(mixed): mixed $callable
+   */
   public function refine(Closure $callable, string|Closure|null $message = null): static {
     return $this->addRule(new Rule(
       name: 'refinement',
       code: 'custom',
-      check: $callable,
+      check: static fn(mixed $value): bool => (bool) $callable($value),
       message: $message ?? 'Invalid value'
     ));
   }

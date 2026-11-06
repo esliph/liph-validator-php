@@ -52,7 +52,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => is_string($value);
+    return fn(mixed $value): bool => is_string($value);
   }
 
   public function test_parseType_WithValueMatchingFirstMember_ShouldAccept(): void {
@@ -313,7 +313,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   public function test_refine_WithUnionRuleFailing_ShouldReturnCustomIssue(): void {
     $schema = (new UnionSchema([new StringSchema(), new IntegerSchema()]))
-      ->refine(fn(mixed $value, array $params): bool => is_int($value), 'Must be an integer');
+      ->refine(fn(mixed $value): bool => is_int($value), 'Must be an integer');
 
     $result = $schema->safeParse('abc');
 
@@ -327,7 +327,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   public function test_refine_WithClosureMessage_ShouldResolveMessageWithValue(): void {
     $schema = (new UnionSchema([new StringSchema(), new IntegerSchema()]))
       ->refine(
-        fn(mixed $value, array $params): bool => is_int($value),
+        fn(mixed $value): bool => is_int($value),
         fn(mixed $value, array $params): string => "Got '$value'"
       );
 
@@ -339,8 +339,8 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   public function test_refine_WithMultipleUnionRulesFailing_ShouldReportAllIssues(): void {
     $schema = (new UnionSchema([new StringSchema(), new IntegerSchema()]))
-      ->refine(fn(mixed $value, array $params): bool => false, 'first')
-      ->refine(fn(mixed $value, array $params): bool => false, 'second');
+      ->refine(fn(mixed $value): bool => false, 'first')
+      ->refine(fn(mixed $value): bool => false, 'second');
 
     $result = $schema->safeParse(1);
 
@@ -353,7 +353,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   public function test_refine_WithNoMemberMatching_ShouldNotRunUnionRules(): void {
     $called = false;
     $schema = (new UnionSchema([new StringSchema(), new IntegerSchema()]))
-      ->refine(function (mixed $value, array $params) use (&$called): bool {
+      ->refine(function (mixed $value) use (&$called): bool {
         $called = true;
 
         return false;
@@ -371,7 +371,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $schema = (new UnionSchema([
       (new IntegerSchema())->coerce(),
       new StringSchema(),
-    ]))->refine(function (mixed $value, array $params) use (&$received): bool {
+    ]))->refine(function (mixed $value) use (&$received): bool {
       $received = $value;
 
       return true;
@@ -635,7 +635,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   public function test_parseType_WithNullAndDirtyMember_ShouldStillFailRequired(): void {
     $schema = V::union(
-      V::null()->refine(fn(mixed $v, array $p): bool => false, 'never'),
+      V::null()->refine(fn(mixed $v): bool => false, 'never'),
       V::int()
     );
 
@@ -720,7 +720,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   public function test_refine_WithNullAcceptedByMember_ShouldRunUnionRulesOnNull(): void {
     $schema = V::union(V::null(), V::int())
-      ->refine(fn(mixed $v, array $p): bool => $v !== null, 'no null');
+      ->refine(fn(mixed $v): bool => $v !== null, 'no null');
 
     $result = $schema->safeParse(null);
 
@@ -774,7 +774,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   public function test_refine_ShouldNotMutateOriginal(): void {
     $base = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
-    $refined = $base->refine(fn(mixed $value, array $params): bool => false);
+    $refined = $base->refine(fn(mixed $value): bool => false);
 
     $this->assertFalse($refined->safeParse('abc')->success);
     $this->assertTrue($base->safeParse('abc')->success);

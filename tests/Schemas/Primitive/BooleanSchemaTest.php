@@ -42,7 +42,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $path): bool => $value === true;
+    return fn(mixed $value): bool => $value === true;
   }
 
   public function test_parseType_WithBooleanTrue_ShouldAccept(): void {
@@ -641,7 +641,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_edgecase_RefineWithComplexCondition_ShouldEnforce(): void {
     $schema = (new BooleanSchema())->refine(
-      fn(mixed $value, array $path): bool => $value === true,
+      fn(mixed $value): bool => $value === true,
       'Value must be exactly true'
     );
 
@@ -653,7 +653,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     $schema = (new BooleanSchema())
       ->coerce()
       ->refine(
-        fn(mixed $value, array $path): bool => $value === true,
+        fn(mixed $value): bool => $value === true,
         'Must be true'
       );
 

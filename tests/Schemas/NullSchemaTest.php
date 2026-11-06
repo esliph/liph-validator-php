@@ -42,7 +42,7 @@ class NullSchemaTest extends BaseSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => $value === null;
+    return fn(mixed $value): bool => $value === null;
   }
 
   #[Override]

@@ -85,8 +85,8 @@ class SchemaTest extends TestCase {
   }
 
   public function test_clone_WithRules_ShouldCloneAllRules(): void {
-    $check1 = fn(mixed $value, array $params) => strlen($value) > 3;
-    $check2 = fn(mixed $value, array $params) => strlen($value) < 20;
+    $check1 = fn(mixed $value) => strlen($value) > 3;
+    $check2 = fn(mixed $value) => strlen($value) < 20;
 
     $schema = new TestSchema();
     $schema = $schema->refine($check1, 'Too short');
@@ -139,7 +139,7 @@ class SchemaTest extends TestCase {
 
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => strlen($v) > 10,
+      fn(mixed $v) => strlen($v) > 10,
       'Must be longer than 10 characters'
     );
 
@@ -155,7 +155,7 @@ class SchemaTest extends TestCase {
   public function test_isValid_WithInvalidValue_ShouldReturnFalse(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => strlen($v) > 10
+      fn(mixed $v) => strlen($v) > 10
     );
 
     $this->assertFalse($schema->isValid('short'));
@@ -180,7 +180,7 @@ class SchemaTest extends TestCase {
   public function test_safeParse_WithInvalidValue_ShouldReturnFailureResult(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => false,
+      fn(mixed $v) => false,
       'Validation failed'
     );
 
@@ -832,7 +832,7 @@ class SchemaTest extends TestCase {
   }
 
   public function test_validateRules_WithFailingRule_ShouldReturnDirtyResult(): void {
-    $schema = (new TestSchema())->refine(fn(mixed $v, array $p): bool => false);
+    $schema = (new TestSchema())->refine(fn(mixed $v): bool => false);
 
     $result = $schema->safeParse(1);
 

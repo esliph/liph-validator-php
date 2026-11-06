@@ -43,7 +43,7 @@ class LiteralSchemaTest extends BaseSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => $value === 'active';
+    return fn(mixed $value): bool => $value === 'active';
   }
 
   /**

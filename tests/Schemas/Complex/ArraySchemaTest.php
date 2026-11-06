@@ -46,7 +46,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => count($value) === 3;
+    return fn(mixed $value): bool => count($value) === 3;
   }
 
   public function test_parseType_WithIndexedArray_ShouldAccept(): void {
@@ -828,7 +828,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WithFailingCheck_ShouldFailWithCustomCode(): void {
     $schema = (new ArraySchema(new IntegerSchema()))->refine(
-      fn(mixed $value, array $params): bool => count(array_unique($value)) === count($value),
+      fn(mixed $value): bool => count(array_unique($value)) === count($value),
       'Items must be unique'
     );
 
@@ -842,7 +842,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WhenFailing_ShouldNotValidateElements(): void {
     $schema = (new ArraySchema(new IntegerSchema()))->refine(
-      fn(mixed $value, array $params): bool => false,
+      fn(mixed $value): bool => false,
       'Always fails'
     );
 

@@ -46,7 +46,7 @@ class EnumSchemaTest extends BaseSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => $value !== 'c';
+    return fn(mixed $value): bool => $value !== 'c';
   }
 
   /**

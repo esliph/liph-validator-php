@@ -38,7 +38,7 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $path): bool => $value > 0;
+    return fn(mixed $value): bool => $value > 0;
   }
 
   public function test_min_WithValueGreaterThanMin_ShouldPass(): void {
@@ -624,7 +624,7 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
   public function test_refineWithComplexCondition_ShouldEnforce(): void {
     $schema = $this->createNumberSchema()->refine(
-      fn(mixed $v, array $p): bool => $v > 0 && $v < 100 && fmod($v, 2) === 0.0,
+      fn(mixed $v): bool => $v > 0 && $v < 100 && fmod($v, 2) === 0.0,
       'Must be positive, less than 100, and even'
     );
 

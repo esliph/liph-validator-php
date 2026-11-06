@@ -48,7 +48,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => $value->age >= 18;
+    return fn(mixed $value): bool => $value->age >= 18;
   }
 
   private function createUserSchema(): ObjectSchema {
@@ -955,7 +955,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
       'password' => new StringSchema(),
       'confirm' => new StringSchema(),
     ]))->refine(
-      fn(mixed $value, array $params): bool => $value->password === $value->confirm,
+      fn(mixed $value): bool => $value->password === $value->confirm,
       'Passwords must match'
     );
 
@@ -970,7 +970,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WithClosureMessage_ShouldResolveMessageFromValue(): void {
     $schema = $this->createUserSchema()->refine(
-      fn(mixed $value, array $params): bool => $value->age >= 18,
+      fn(mixed $value): bool => $value->age >= 18,
       fn(mixed $value, array $params): string => "{$value->name} is under age"
     );
 
@@ -982,7 +982,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WhenFailing_ShouldSkipChildValidation(): void {
     $schema = $this->createUserSchema()->refine(
-      fn(mixed $value, array $params): bool => false,
+      fn(mixed $value): bool => false,
       'Always fails'
     );
 
@@ -995,8 +995,8 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WithMultipleFailingRules_ShouldReportAllIssues(): void {
     $schema = $this->createUserSchema()
-      ->refine(fn(mixed $value, array $params): bool => false, 'First')
-      ->refine(fn(mixed $value, array $params): bool => false, 'Second');
+      ->refine(fn(mixed $value): bool => false, 'First')
+      ->refine(fn(mixed $value): bool => false, 'Second');
 
     $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30]);
 
@@ -1009,7 +1009,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
   public function test_refine_ShouldReceiveValueBeforeChildParsing(): void {
     $received = null;
     $schema = (new ObjectSchema(['name' => (new StringSchema())->trim()]))->refine(
-      function (mixed $value, array $params) use (&$received): bool {
+      function (mixed $value) use (&$received): bool {
         $received = $value->name;
 
         return true;
@@ -1029,7 +1029,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
         'from' => new IntegerSchema(),
         'to' => new IntegerSchema(),
       ]))->refine(
-        fn(mixed $value, array $params): bool => $value->from <= $value->to,
+        fn(mixed $value): bool => $value->from <= $value->to,
         'Invalid range'
       ),
     ]);

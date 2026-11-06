@@ -40,7 +40,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $path): bool => strlen($value) > 5;
+    return fn(mixed $value): bool => strlen($value) > 5;
   }
 
   public function test_parseType_WithValidString_ShouldAccept(): void {
@@ -1158,7 +1158,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_edgecase_RefineWithComplexCondition_ShouldEnforce(): void {
     $schema = (new StringSchema())->refine(
-      fn(mixed $value, array $path): bool =>
+      fn(mixed $value): bool =>
       preg_match('/^[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$/', $value) === 1,
       'Invalid email format'
     );
@@ -1319,6 +1319,17 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result3->success);
     $this->assertSame('TEST STRING', $result3->data);
+  }
+
+  public function test_refine_WithNativeSingleArgumentCallable_ShouldValidate(): void {
+    $schema = (new StringSchema())->refine(is_numeric(...));
+
+    $valid = $schema->safeParse('12');
+    $invalid = $schema->safeParse('ab');
+
+    $this->assertTrue($valid->success);
+    $this->assertFalse($invalid->success);
+    $this->assertSame('custom', $invalid->issues[0]->code);
   }
 
   public function test_messages_WithInvalidTypeString_ShouldUseCustomMessage(): void {

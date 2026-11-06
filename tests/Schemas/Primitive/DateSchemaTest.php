@@ -48,7 +48,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $params): bool => $value instanceof DateTimeImmutable && $value->format('Y') === '2024';
+    return fn(mixed $value): bool => $value instanceof DateTimeImmutable && $value->format('Y') === '2024';
   }
 
   private static function utc(string $datetime): DateTimeImmutable {
@@ -905,7 +905,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WithFailingCheck_ShouldFailWithCustomCode(): void {
     $schema = (new DateSchema())->refine(
-      fn(DateTimeImmutable $value, array $params): bool => $value->format('N') < 6,
+      fn(DateTimeImmutable $value): bool => $value->format('N') < 6,
       'Must be a weekday'
     );
 
@@ -918,7 +918,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_refine_WithCoercion_ShouldReceiveDateTimeImmutable(): void {
     $received = null;
-    $schema = (new DateSchema())->coerce()->refine(function (mixed $value, array $params) use (&$received): bool {
+    $schema = (new DateSchema())->coerce()->refine(function (mixed $value) use (&$received): bool {
       $received = $value;
 
       return true;
