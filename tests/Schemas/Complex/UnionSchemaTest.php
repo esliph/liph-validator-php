@@ -189,37 +189,32 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(5, $result->data);
   }
 
-  public function test_parseType_WithSingleMember_ShouldAcceptMemberValueAndReportInvalidUnion(): void {
-    $schema = new UnionSchema([new IntegerSchema()]);
+  public function test_construct_WithSingleOption_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('union must have at least 2 options');
 
-    $valid = $schema->safeParse(10);
-    $invalid = $schema->safeParse('10');
-
-    $this->assertTrue($valid->success);
-    $this->assertSame(10, $valid->data);
-    $this->assertFalse($invalid->success);
-    $this->assertCount(1, $invalid->issues);
-    $this->assertSame('invalid_union', $invalid->issues[0]->code);
+    new UnionSchema([new IntegerSchema()]);
   }
 
-  public function test_parseType_WithNoMembers_ShouldFailWithIssue(): void {
-    $schema = new UnionSchema();
+  public function test_construct_WithNoOptions_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('union must have at least 2 options');
 
-    $result = $schema->safeParse('anything');
-
-    $this->assertFalse($result->success);
-    $this->assertNotEmpty($result->issues, 'A failed parse must explain itself with at least one issue');
+    new UnionSchema();
   }
 
-  public function test_parseType_WithNoMembers_ShouldReportInvalidTypeAtUnionPath(): void {
-    $schema = new ObjectSchema(['field' => new UnionSchema()]);
+  public function test_union_WithSingleArgument_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('union must have at least 2 options');
 
-    $result = $schema->safeParse((object) ['field' => 'anything']);
+    V::union(V::int());
+  }
 
-    $this->assertCount(1, $result->issues);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Union has no members to match against', $result->issues[0]->message);
-    $this->assertSame(['field'], $result->issues[0]->path);
+  public function test_getOptions_ShouldReturnOptionsInOrder(): void {
+    $a = V::string();
+    $b = V::int();
+
+    $this->assertSame([$a, $b], (new UnionSchema([$a, $b]))->getOptions());
   }
 
   public function test_parseType_WithFailingRootValue_ShouldReportEmptyPath(): void {
@@ -711,7 +706,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
         return $this->result;
       }
     };
-    $union = new UnionSchema([$member]);
+    $union = new UnionSchema([$member, new StringSchema()]);
 
     $result = (new ReflectionMethod(UnionSchema::class, 'parseType'))->invoke($union, 'x', []);
 
@@ -821,7 +816,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   public function test_clone_WithNestedComposite_ShouldDeepCloneGrandchildren(): void {
     $inner = new StringSchema();
     $object = new ObjectSchema(['name' => $inner]);
-    $base = new UnionSchema([$object]);
+    $base = new UnionSchema([$object, new IntegerSchema()]);
 
     $cloned = clone $base;
 

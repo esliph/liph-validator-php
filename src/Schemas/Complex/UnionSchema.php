@@ -2,20 +2,34 @@
 
 namespace Esliph\Validator\Schemas\Complex;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Schemas\Schema;
+use InvalidArgumentException;
 use Override;
 
 final class UnionSchema extends Schema {
 
+  /** @var list<Schema> */
+  protected array $schemas;
+
   /**
    * @param Schema[] $schemas
+   *
+   * @throws InvalidArgumentException com menos de 2 opções
    */
-  public function __construct(
-    protected array $schemas = []
-  ) {
-    $this->schemas = $schemas;
+  public function __construct(array $schemas = []) {
+    if (count($schemas) < 2) {
+      throw new InvalidArgumentException('union must have at least 2 options');
+    }
+
+    $this->schemas = array_values($schemas);
+  }
+
+  /**
+   * @return list<Schema>
+   */
+  public function getOptions(): array {
+    return $this->schemas;
   }
 
   public function __clone(): void {
@@ -48,16 +62,6 @@ final class UnionSchema extends Schema {
    */
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
-    if ($this->schemas === []) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Union has no members to match against',
-          code: 'invalid_type'
-        )
-      );
-    }
-
     $firstDirty = null;
 
     foreach ($this->schemas as $schema) {

@@ -17,6 +17,7 @@ use Esliph\Validator\Schemas\LiteralSchema;
 use Esliph\Validator\Schemas\EnumSchema;
 use Esliph\Validator\Schemas\Schema;
 use BackedEnum;
+use InvalidArgumentException;
 use UnitEnum;
 
 final class V {
@@ -66,6 +67,8 @@ final class V {
 
   /**
    * @param array<string|int, Schema> $shape
+   *
+   * @throws InvalidArgumentException se algum valor do shape não for Schema
    */
   public static function object(array $shape = []): ObjectSchema {
     return new ObjectSchema(shape: $shape);
@@ -75,6 +78,9 @@ final class V {
     return new ArraySchema(elementSchema: $schema);
   }
 
+  /**
+   * @throws InvalidArgumentException com menos de 2 opções
+   */
   public static function union(Schema ...$schemas): UnionSchema {
     return new UnionSchema(schemas: $schemas);
   }
