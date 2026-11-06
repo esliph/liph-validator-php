@@ -17,8 +17,9 @@ class IntegerSchema extends NumberSchema {
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       // String inteira que cabe vira int exato, sem passar por float.
       $number = $value + 0;
+      $isIntegerStringOutOfRange = is_float($number) && strpbrk($value, '.eE') === false;
 
-      if (is_float($number) && strpbrk($value, '.eE') === false) {
+      if ($isIntegerStringOutOfRange) {
         return $this->outOfRangeIssue($path);
       }
 

@@ -18,6 +18,9 @@ use PhpBench\Attributes as Bench;
 #[Bench\ParamProviders('provideSizes')]
 final class PayloadBench {
 
+  /** `email`, `age`, one element of `tags` and `address.zip`. */
+  private const int ISSUES_PER_INVALID_USER = 4;
+
   private Schema $schema;
   /** @var list<object> */
   private array $input;
@@ -47,7 +50,7 @@ final class PayloadBench {
     $this->schema = $this->usersSchema();
     $this->input = array_map(fn(int $i): object => $this->user($i, valid: false), range(1, $params['size']));
 
-    Scenario::expectIssues($this->schema, $this->input, 4 * $params['size']);
+    Scenario::expectIssues($this->schema, $this->input, self::ISSUES_PER_INVALID_USER * $params['size']);
   }
 
   #[Bench\BeforeMethods('setUpValid')]
@@ -80,10 +83,6 @@ final class PayloadBench {
     return V::_array($user);
   }
 
-  /**
-   * Invalid users fail in 4 places: `email`, `age`, one element of `tags` and
-   * `address.zip`.
-   */
   private function user(int $i, bool $valid): object {
     return (object) [
       'id' => $i,

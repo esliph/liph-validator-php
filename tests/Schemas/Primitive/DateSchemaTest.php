@@ -55,8 +55,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     return new DateTimeImmutable($datetime, new DateTimeZone('UTC'));
   }
 
-  // parseType
-
   public function test_parseType_WithDateTimeImmutable_ShouldAcceptSameInstant(): void {
     $schema = new DateSchema();
     $input = self::utc('2024-01-15 10:30:00');
@@ -215,8 +213,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
       }
     }
   }
-
-  // coerce
 
   public function test_coerce_WithIsoDateString_ShouldParseToDateTimeImmutable(): void {
     $schema = (new DateSchema())->coerce();
@@ -388,8 +384,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($coercible->isValid('2024-01-15'));
   }
 
-  // format
-
   public function test_format_WithMatchingString_ShouldParseUsingFormat(): void {
     $schema = (new DateSchema())->coerce()->format('d/m/Y');
 
@@ -493,8 +487,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($formatted->isValid('2024-01-15'));
   }
 
-  // timezone
-
   public function test_timezone_WithStringName_ShouldApplyToParsedString(): void {
     $schema = (new DateSchema())->coerce()->timezone('America/Sao_Paulo');
 
@@ -557,8 +549,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertSame(date_default_timezone_get(), $result->data->getTimezone()->getName());
   }
-
-  // after
 
   public function test_after_WithLaterDate_ShouldPass(): void {
     $schema = (new DateSchema())->after(self::utc('2024-01-15'));
@@ -668,8 +658,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($base->isValid(self::utc('2000-01-01')));
   }
 
-  // before
-
   public function test_before_WithEarlierDate_ShouldPass(): void {
     $schema = (new DateSchema())->before(self::utc('2024-01-15'));
 
@@ -731,8 +719,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($base->isValid(self::utc('2030-01-01')));
   }
-
-  // min / max
 
   public function test_min_WithValueGreaterThanMin_ShouldPass(): void {
     $schema = (new DateSchema())->min(self::utc('2024-01-15'));
@@ -814,8 +800,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Must be on or before 2024-01-15T00:00:00+00:00', $result->issues[0]->message);
   }
 
-  // between
-
   public function test_between_WithValueInsideRange_ShouldPass(): void {
     $schema = (new DateSchema())->between(self::utc('2024-01-01'), self::utc('2024-12-31'));
 
@@ -881,8 +865,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($schema->isValid(self::utc('2024-12-31')));
   }
 
-  // regras combinadas
-
   public function test_rules_WithMultipleFailingRules_ShouldReportAllIssues(): void {
     $schema = (new DateSchema())
       ->after(self::utc('2024-06-01'))
@@ -920,8 +902,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($called);
   }
-
-  // refine / transform / default
 
   public function test_refine_WithFailingCheck_ShouldFailWithCustomCode(): void {
     $schema = (new DateSchema())->refine(
@@ -1027,8 +1007,6 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($schema->isValid(self::utc('2024-01-15')));
     $this->assertFalse($schema->isValid('2024-01-15'));
   }
-
-  // clone / parse
 
   public function test_clone_WithRulesAndTimezone_ShouldBehaveIdentically(): void {
     $schema = (new DateSchema())->coerce()->timezone('Asia/Tokyo')->after(self::utc('2024-01-15'));

@@ -49,8 +49,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     return fn(mixed $value, array $params): bool => count($value) === 3;
   }
 
-  // parseType
-
   public function test_parseType_WithIndexedArray_ShouldAccept(): void {
     $schema = new ArraySchema();
 
@@ -190,8 +188,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
       }
     }
   }
-
-  // coerce
 
   public function test_coerce_WithJsonArrayString_ShouldDecodeToArray(): void {
     $schema = (new ArraySchema())->coerce();
@@ -338,8 +334,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($coerced->safeParse('[1]')->success);
     $this->assertFalse($base->safeParse('[1]')->success);
   }
-
-  // validateType
 
   public function test_validateType_WithoutElementSchema_ShouldAcceptAnyElements(): void {
     $schema = new ArraySchema();
@@ -542,8 +536,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(6, $result->data);
   }
 
-  // of
-
   public function test_of_WithSchema_ShouldValidateElements(): void {
     $schema = (new ArraySchema())->of(new StringSchema());
 
@@ -579,8 +571,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
     $this->assertSame('too_small', $result->issues[0]->code);
   }
-
-  // min
 
   public function test_min_WithLengthBelowMin_ShouldFailWithTooSmall(): void {
     $schema = (new ArraySchema())->min(2);
@@ -646,8 +636,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($base->safeParse([1])->success);
   }
 
-  // max
-
   public function test_max_WithLengthAboveMax_ShouldFailWithTooBig(): void {
     $schema = (new ArraySchema())->max(2);
 
@@ -701,8 +689,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertSame('Got 3, max 1', $result->issues[0]->message);
   }
-
-  // length
 
   public function test_length_WithExactLength_ShouldPass(): void {
     $schema = (new ArraySchema())->length(2);
@@ -762,8 +748,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('3 != 2', $result->issues[0]->message);
   }
 
-  // nonempty
-
   public function test_nonempty_WithEmptyArray_ShouldFailWithTooSmall(): void {
     $schema = (new ArraySchema())->nonempty();
 
@@ -809,8 +793,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
     $this->assertSame('too_small', $result->issues[0]->code);
   }
-
-  // rules combinadas
 
   public function test_rules_WithMultipleFailingRules_ShouldReportAllIssues(): void {
     $schema = (new ArraySchema())->nonempty()->min(2)->length(3);
@@ -870,8 +852,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('custom', $result->issues[0]->code);
   }
 
-  // optional / default
-
   public function test_optional_WithNonNullInvalidValue_ShouldStillFail(): void {
     $schema = (new ArraySchema())->optional();
 
@@ -918,8 +898,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame([2, 3], $result->data);
   }
 
-  // clone
-
   public function test_clone_ShouldDeepCloneElementSchema(): void {
     $schema = new ArraySchema(new IntegerSchema());
     $property = new \ReflectionProperty(ArraySchema::class, 'elementSchema');
@@ -952,8 +930,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($base->safeParse('[5]')->success);
     $this->assertFalse($base->safeParse([-1])->success);
   }
-
-  // parse / isValid / V
 
   public function test_parse_WithValidArray_ShouldReturnParsedData(): void {
     $schema = new ArraySchema((new IntegerSchema())->coerce());

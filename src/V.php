@@ -51,9 +51,6 @@ final class V {
     return new ObjectSchema(shape: $shape);
   }
 
-  /**
-   * @param Schema|null $schema
-   */
   public static function _array(?Schema $schema = null): ArraySchema {
     return new ArraySchema(elementSchema: $schema);
   }
