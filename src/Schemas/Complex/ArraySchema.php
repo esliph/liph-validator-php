@@ -7,6 +7,7 @@ use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 final class ArraySchema extends CoercibleSchema {
@@ -88,6 +89,10 @@ final class ArraySchema extends CoercibleSchema {
     return ParseResult::ok($parsedValue);
   }
 
+  public function getItem(): ?Schema {
+    return $this->elementSchema;
+  }
+
   public function of(Schema $schema): static {
     $clone = clone $this;
     $clone->elementSchema = $schema;
@@ -95,7 +100,12 @@ final class ArraySchema extends CoercibleSchema {
     return $clone;
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function length(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'length');
+
     return $this->addRule(new Rule(
       name: 'length',
       code: 'invalid_length',
@@ -105,7 +115,12 @@ final class ArraySchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function min(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'min');
+
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_small',
@@ -115,7 +130,12 @@ final class ArraySchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function max(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'max');
+
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_big',

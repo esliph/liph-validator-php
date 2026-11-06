@@ -15,6 +15,7 @@ use Esliph\Validator\V;
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
@@ -1005,5 +1006,43 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $schema->safeParse('"x"');
 
     $this->assertSame(['"x"', ['expected' => 'array', 'received' => 'string']], $received);
+  }
+
+  /**
+   * @return iterable<string, array{Closure(ArraySchema, int): ArraySchema, string}>
+   */
+  public static function provideCountMethods(): iterable {
+    yield 'min' => [fn(ArraySchema $s, int $n) => $s->min($n), 'min'];
+    yield 'max' => [fn(ArraySchema $s, int $n) => $s->max($n), 'max'];
+    yield 'length' => [fn(ArraySchema $s, int $n) => $s->length($n), 'length'];
+  }
+
+  /**
+   * @param Closure(ArraySchema, int): ArraySchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithNegative_ShouldThrow(Closure $call, string $method): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("$method length must be a non-negative int");
+
+    $call(new ArraySchema(), -1);
+  }
+
+  /**
+   * @param Closure(ArraySchema, int): ArraySchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithZero_ShouldNotThrow(Closure $call, string $method): void {
+    $this->assertInstanceOf(ArraySchema::class, $call(new ArraySchema(), 0));
+  }
+
+  public function test_getItem_WithElementSchema_ShouldReturnIt(): void {
+    $item = new IntegerSchema();
+
+    $this->assertSame($item, (new ArraySchema($item))->getItem());
+  }
+
+  public function test_getItem_WithoutElementSchema_ShouldReturnNull(): void {
+    $this->assertNull(V::_array()->getItem());
   }
 }

@@ -277,6 +277,15 @@ abstract class Schema {
   }
 
   /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
+  protected static function assertCount(int $n, string $method): void {
+    if ($n < 0) {
+      throw new InvalidArgumentException("$method length must be a non-negative int");
+    }
+  }
+
+  /**
    * Vocabulário de tipos das mensagens: `int`, `float`, `bool`, `null`, nome de
    * classe, `resource (stream)`.
    */

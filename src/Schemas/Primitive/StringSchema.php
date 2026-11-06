@@ -6,6 +6,7 @@ use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 final class StringSchema extends CoercibleSchema {
@@ -31,7 +32,12 @@ final class StringSchema extends CoercibleSchema {
     return $this->invalidStringType($value, $path);
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function min(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'min');
+
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_small',
@@ -41,7 +47,12 @@ final class StringSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function max(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'max');
+
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_big',
@@ -69,7 +80,14 @@ final class StringSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se o pattern não compilar (inclusive sem delimitadores)
+   */
   public function regex(string $pattern, string|Closure|null $message = null): static {
+    if (@preg_match($pattern, '') === false) {
+      throw new InvalidArgumentException("invalid regex pattern: $pattern");
+    }
+
     return $this->addRule(new Rule(
       name: 'regex',
       code: 'invalid_format',
@@ -118,7 +136,12 @@ final class StringSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException se a contagem for negativa
+   */
   public function length(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'length');
+
     return $this->addRule(new Rule(
       name: 'length',
       code: 'invalid_length',

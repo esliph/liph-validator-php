@@ -9,6 +9,7 @@ use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 class StringSchemaTest extends BaseCoercibleSchemaTestCase {
@@ -1365,5 +1366,47 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertSame('A', $schema->safeParse(null)->issues[0]->message);
     $this->assertSame('B', $schema->safeParse(1)->issues[0]->message);
+  }
+
+  /**
+   * @return iterable<string, array{Closure(StringSchema, int): StringSchema, string}>
+   */
+  public static function provideCountMethods(): iterable {
+    yield 'min' => [fn(StringSchema $s, int $n) => $s->min($n), 'min'];
+    yield 'max' => [fn(StringSchema $s, int $n) => $s->max($n), 'max'];
+    yield 'length' => [fn(StringSchema $s, int $n) => $s->length($n), 'length'];
+  }
+
+  /**
+   * @param Closure(StringSchema, int): StringSchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithNegative_ShouldThrow(Closure $call, string $method): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("$method length must be a non-negative int");
+
+    $call(new StringSchema(), -1);
+  }
+
+  /**
+   * @param Closure(StringSchema, int): StringSchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithZero_ShouldNotThrow(Closure $call, string $method): void {
+    $this->assertInstanceOf(StringSchema::class, $call(new StringSchema(), 0));
+  }
+
+  public function test_regex_WithInvalidPattern_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('invalid regex pattern: /(/');
+
+    (new StringSchema())->regex('/(/');
+  }
+
+  public function test_regex_WithoutDelimiters_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('invalid regex pattern: abc');
+
+    (new StringSchema())->regex('abc');
   }
 }
