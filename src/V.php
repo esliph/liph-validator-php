@@ -14,7 +14,9 @@ use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\MixedSchema;
 use Esliph\Validator\Schemas\NullSchema;
 use Esliph\Validator\Schemas\LiteralSchema;
+use Esliph\Validator\Schemas\EnumSchema;
 use Esliph\Validator\Schemas\Schema;
+use BackedEnum;
 use UnitEnum;
 
 final class V {
@@ -53,6 +55,13 @@ final class V {
 
   public static function literal(string|int|float|bool|null|UnitEnum $value): LiteralSchema {
     return new LiteralSchema($value);
+  }
+
+  /**
+   * @param list<string|int|float|bool>|array<string|int|float|bool>|class-string<BackedEnum> $values
+   */
+  public static function enum(array|string $values): EnumSchema {
+    return new EnumSchema($values);
   }
 
   /**
