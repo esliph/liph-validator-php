@@ -27,6 +27,11 @@ final class UnionSchema extends Schema {
     );
   }
 
+  #[Override]
+  protected static function messageCodes(): array {
+    return ['required', 'invalid_union'];
+  }
+
   /**
    * O `null` segue para as opções, e cada uma decide com o próprio `optional()`,
    * default ou `V::null()`.
@@ -68,13 +73,7 @@ final class UnionSchema extends Schema {
     }
 
     if ($value === null) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Value is required',
-          code: 'required'
-        )
-      );
+      return ParseResult::fail($this->issue('required', 'Value is required', $value, $path));
     }
 
     if ($firstDirty !== null) {

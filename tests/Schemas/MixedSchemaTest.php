@@ -10,6 +10,7 @@ use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Schemas\MixedSchema;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 use stdClass;
 
@@ -119,6 +120,13 @@ class MixedSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('required', $result->issues[0]->code);
     $this->assertSame('Value is required', $result->issues[0]->message);
     $this->assertSame([], $result->issues[0]->path);
+  }
+
+  public function test_messages_WithInvalidTypeCode_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'invalid_type'; allowed: required");
+
+    (new MixedSchema())->messages(['invalid_type' => 'x']);
   }
 
   public function test_mixed_FromFactory_ShouldReturnMixedSchema(): void {

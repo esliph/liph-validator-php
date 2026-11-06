@@ -9,6 +9,7 @@ use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Schemas\NullSchema;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 use stdClass;
 
@@ -70,7 +71,7 @@ class NullSchemaTest extends BaseSchemaTestCase {
     $this->assertFalse($result->success, "Type $typeName should be invalid");
     $this->assertCount(1, $result->issues);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame("Expected null, received $typeName", $result->issues[0]->message);
+    $this->assertSame('Expected null, received ' . get_debug_type($value), $result->issues[0]->message, "Type $typeName");
     $this->assertSame([], $result->issues[0]->path);
   }
 
@@ -81,7 +82,44 @@ class NullSchemaTest extends BaseSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected null, received integer', $result->issues[0]->message);
+    $this->assertSame('Expected null, received int', $result->issues[0]->message);
+  }
+
+  #[Override]
+  protected function messageProbe(): array {
+    return ['invalid_type', 'x'];
+  }
+
+  #[Override]
+  public function test_messages_WithRequiredString_ShouldUseCustomMessage(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'required'; allowed: invalid_type");
+
+    $this->createSchema()->messages(['required' => 'Informe o valor']);
+  }
+
+  #[Override]
+  public function test_messages_WithRequiredClosure_ShouldReceiveNullAndEmptyParams(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'required'; allowed: invalid_type");
+
+    $this->createSchema()->messages(['required' => fn(mixed $value, array $params): string => 'custom']);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveValueAndParams(): void {
+    $received = null;
+    $schema = (new NullSchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'só null';
+      },
+    ]);
+
+    $result = $schema->safeParse(5);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('só null', $result->issues[0]->message);
+    $this->assertSame([5, ['expected' => 'null', 'received' => 'int']], $received);
   }
 
   public function test_validateType_WithNullSchemaInsideArray_ShouldAcceptNullElements(): void {

@@ -2,7 +2,6 @@
 
 namespace Esliph\Validator\Schemas;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 use Override;
 
@@ -11,6 +10,11 @@ use Override;
  * de tipo, então `V::null()->_default(5)` sempre falha.
  */
 final class NullSchema extends Schema {
+
+  #[Override]
+  protected static function messageCodes(): array {
+    return ['invalid_type'];
+  }
 
   #[Override]
   protected function acceptsNull(): bool {
@@ -23,12 +27,13 @@ final class NullSchema extends Schema {
       return ParseResult::ok(null);
     }
 
+    $received = self::describeType($value);
+
     return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected null, received ' . gettype($value),
-        code: 'invalid_type'
-      )
+      $this->issue('invalid_type', "Expected null, received $received", $value, $path, [
+        'expected' => 'null',
+        'received' => $received,
+      ])
     );
   }
 }

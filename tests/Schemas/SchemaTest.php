@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Errors\ValidatorException;
+use InvalidArgumentException;
 use Override;
 
 class TestSchema extends Schema {
@@ -51,6 +52,36 @@ class SchemaTest extends TestCase {
     $cloned = clone $schema;
 
     $this->assertNotSame($schema, $cloned);
+  }
+
+  public function test_messages_WithUnknownCode_ShouldListBaseCodesInOrder(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'nope'; allowed: required, invalid_type");
+
+    (new TestSchema())->messages(['nope' => 'x']);
+  }
+
+  public function test_messages_WithEmptyArray_ShouldKeepDefaultMessages(): void {
+    $result = (new TestSchema())->messages([])->safeParse(null);
+
+    $this->assertSame('Value is required', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithClosureReturningInt_ShouldCastToString(): void {
+    /** @phpstan-ignore argument.type */
+    $schema = (new TestSchema())->messages([
+      'required' => fn(mixed $value, array $params): int => 42,
+    ]);
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame('42', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithStringContainingPlaceholders_ShouldKeepItLiteral(): void {
+    $result = (new TestSchema())->messages(['required' => '{received} %s'])->safeParse(null);
+
+    $this->assertSame('{received} %s', $result->issues[0]->message);
   }
 
   public function test_clone_WithRules_ShouldCloneAllRules(): void {

@@ -3,6 +3,7 @@
 namespace Esliph\Validator\Tests\Schemas;
 
 use Closure;
+use InvalidArgumentException;
 
 use PHPUnit\Framework\TestCase;
 
@@ -138,6 +139,73 @@ abstract class BaseSchemaTestCase extends TestCase {
     $result = $schema->safeParse($this->getValidValue());
 
     $this->assertTrue($result->success);
+  }
+
+  /**
+   * Código que o schema emite e uma entrada que o dispara, usados pelos testes
+   * de `messages()` que não dependem do `required`.
+   *
+   * @return array{string, mixed}
+   */
+  protected function messageProbe(): array {
+    return ['required', null];
+  }
+
+  public function test_messages_WithRequiredString_ShouldUseCustomMessage(): void {
+    $result = $this->createSchema()->messages(['required' => 'Informe o valor'])->safeParse(null);
+
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame('Informe o valor', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithRequiredClosure_ShouldReceiveNullAndEmptyParams(): void {
+    $received = null;
+    $schema = $this->createSchema()->messages([
+      'required' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame('custom', $result->issues[0]->message);
+    $this->assertSame([null, []], $received);
+  }
+
+  public function test_messages_WithUnknownCode_ShouldThrowListingAllowedCodes(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'nope'; allowed: ");
+
+    $this->createSchema()->messages(['nope' => 'x']);
+  }
+
+  public function test_messages_WithNonStringNonClosureValue_ShouldThrow(): void {
+    [$code] = $this->messageProbe();
+
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Message for code '$code' must be a string or Closure");
+
+    /** @phpstan-ignore argument.type */
+    $this->createSchema()->messages([$code => 42]);
+  }
+
+  public function test_messages_ShouldNotMutateOriginalSchema(): void {
+    [$code, $input] = $this->messageProbe();
+    $base = $this->createSchema();
+
+    $custom = $base->messages([$code => 'custom']);
+
+    $this->assertSame('custom', $custom->safeParse($input)->issues[0]->message);
+    $this->assertNotSame('custom', $base->safeParse($input)->issues[0]->message);
+  }
+
+  public function test_messages_CalledTwiceWithSameCode_ShouldUseLastMessage(): void {
+    [$code, $input] = $this->messageProbe();
+
+    $schema = $this->createSchema()->messages([$code => 'first'])->messages([$code => 'second']);
+
+    $this->assertSame('second', $schema->safeParse($input)->issues[0]->message);
   }
 
   abstract protected function getValidValue(): mixed;

@@ -7,6 +7,7 @@ use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Errors\ValidatorException;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use InvalidArgumentException;
 use UnitEnum;
 
 abstract class Schema {
@@ -18,6 +19,8 @@ abstract class Schema {
   protected bool $isOptional = false;
   protected mixed $default = null;
   protected bool $hasDefault = false;
+  /** @var array<string, string|Closure> */
+  protected array $messages = [];
 
   public function __clone(): void {
     $this->rules = array_map(
@@ -42,13 +45,7 @@ abstract class Schema {
       } elseif ($this->isOptional) {
         return ParseResult::ok();
       } elseif (!$this->acceptsNull()) {
-        return ParseResult::fail(
-          new Issue(
-            path: $path,
-            message: 'Value is required',
-            code: 'required'
-          )
-        );
+        return ParseResult::fail($this->issue('required', 'Value is required', $value, $path));
       }
     }
 
@@ -210,6 +207,75 @@ abstract class Schema {
     $clone->isOptional = true;
 
     return $clone;
+  }
+
+  /**
+   * Troca, por código, as mensagens das issues que o próprio schema emite. Uma
+   * string é texto literal; uma Closure recebe o valor original de entrada e os
+   * params do código. As mensagens das `Rule`s ficam fora deste mapa.
+   *
+   * @param array<string, string|Closure(mixed, array<string, mixed>): string> $messages
+   */
+  public function messages(array $messages): static {
+    foreach ($messages as $code => $message) {
+      if (!in_array($code, static::messageCodes(), true)) {
+        throw new InvalidArgumentException(
+          "Unknown message code '$code'; allowed: " . implode(', ', static::messageCodes())
+        );
+      }
+
+      if (!self::isMessage($message)) {
+        throw new InvalidArgumentException("Message for code '$code' must be a string or Closure");
+      }
+    }
+
+    $clone = clone $this;
+    $clone->messages = array_replace($this->messages, $messages);
+
+    return $clone;
+  }
+
+  /**
+   * Recebe `mixed` porque o tipo do PHPDoc de `messages()` não vale em runtime
+   * para quem chama sem análise estática.
+   */
+  private static function isMessage(mixed $message): bool {
+    return is_string($message) || $message instanceof Closure;
+  }
+
+  /**
+   * Códigos que a classe emite por conta própria. Cada subclasse estende ou
+   * redefine a lista, que só contém o que ela pode emitir.
+   *
+   * @return list<string>
+   */
+  protected static function messageCodes(): array {
+    return ['required', 'invalid_type'];
+  }
+
+  /**
+   * Ponto único de criação das issues de schema. `$value` é o valor original de
+   * entrada, antes da coerção.
+   *
+   * @param string[] $path
+   * @param array<string, mixed> $params
+   */
+  protected function issue(string $code, string $default, mixed $value, array $path, array $params = []): Issue {
+    $message = $this->messages[$code] ?? $default;
+
+    if ($message instanceof Closure) {
+      $message = (string) $message($value, $params);
+    }
+
+    return new Issue(path: $path, message: $message, code: $code);
+  }
+
+  /**
+   * Vocabulário de tipos das mensagens: `int`, `float`, `bool`, `null`, nome de
+   * classe, `resource (stream)`.
+   */
+  protected static function describeType(mixed $value): string {
+    return get_debug_type($value);
   }
 
   /**

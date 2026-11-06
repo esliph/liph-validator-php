@@ -8,6 +8,11 @@ use Override;
 class MixedSchema extends Schema {
 
   #[Override]
+  protected static function messageCodes(): array {
+    return ['required'];
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     return ParseResult::ok($value);
   }
