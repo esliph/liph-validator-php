@@ -16,6 +16,9 @@ use PhpBench\Attributes as Bench;
  *
  * Sizes grow 10x per step: a time ratio of ~10x between steps is linear,
  * ~100x is quadratic.
+ *
+ * The union reports a single issue whatever the number of failing members, so
+ * its curve measures only the cost of walking the members.
  */
 #[Bench\ParamProviders('provideSizes')]
 final class IssueAccumulationBench {
@@ -79,7 +82,7 @@ final class IssueAccumulationBench {
     $this->schema = V::union(...array_map(static fn(): Schema => V::int(), range(1, $params['size'])));
     $this->input = 'x';
 
-    Scenario::expectIssues($this->schema, $this->input, $params['size']);
+    Scenario::expectIssues($this->schema, $this->input, 1);
   }
 
   #[Bench\BeforeMethods('setUpArrayInvalid')]

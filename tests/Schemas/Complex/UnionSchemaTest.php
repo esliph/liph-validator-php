@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 
 use Esliph\Validator\V;
 use Esliph\Validator\Errors\ValidatorException;
+use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Schemas\Complex\ArraySchema;
 use Esliph\Validator\Schemas\Complex\ObjectSchema;
@@ -18,6 +19,7 @@ use Esliph\Validator\Tests\Schemas\BaseSchemaTestCase;
 
 use Closure;
 use Override;
+use ReflectionMethod;
 use ReflectionProperty;
 
 class UnionSchemaTest extends BaseSchemaTestCase {
@@ -72,41 +74,39 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertEmpty($result->issues);
   }
 
-  public function test_parseType_WithValueMatchingNoMember_ShouldReturnIssueFromEachMember(): void {
+  public function test_parseType_WithValueMatchingNoMember_ShouldReturnSingleInvalidUnion(): void {
     $schema = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
     $result = $schema->safeParse(true);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected string, received boolean', $result->issues[0]->message);
-    $this->assertSame('invalid_type', $result->issues[1]->code);
-    $this->assertSame('Expected integer, received boolean', $result->issues[1]->message);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
+    $this->assertSame('Invalid input', $result->issues[0]->message);
+    $this->assertSame([], $result->issues[0]->path);
+    $this->assertFalse($result->dirty);
   }
 
-  public function test_parseType_WithValueMatchingNoMember_ShouldKeepIssuesInMemberOrder(): void {
+  public function test_parseType_WithValueMatchingNoneOfThreeMembers_ShouldReturnSingleInvalidUnion(): void {
     $schema = new UnionSchema([new IntegerSchema(), new BooleanSchema(), new StringSchema()]);
 
     $result = $schema->safeParse([1, 2]);
 
     $this->assertFalse($result->success);
-    $this->assertCount(3, $result->issues);
-    $this->assertSame('Expected integer, received array', $result->issues[0]->message);
-    $this->assertSame('Expected boolean, received array', $result->issues[1]->message);
-    $this->assertSame('Expected string, received array', $result->issues[2]->message);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
   }
 
-  public function test_parseType_WithMemberRuleFailing_ShouldReportMemberRuleIssue(): void {
+  public function test_parseType_WithMemberRuleFailing_ShouldReportOnlyMemberRuleIssue(): void {
     $schema = new UnionSchema([(new StringSchema())->min(5), new IntegerSchema()]);
 
     $result = $schema->safeParse('abc');
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
     $this->assertSame('too_small', $result->issues[0]->code);
     $this->assertSame('Must be at least 5 characters', $result->issues[0]->message);
-    $this->assertSame('invalid_type', $result->issues[1]->code);
+    $this->assertTrue($result->dirty);
   }
 
   public function test_parseType_WithMemberMultipleRulesFailing_ShouldReportAllMemberRuleIssues(): void {
@@ -119,7 +119,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame(
-      ['too_small', 'invalid_format', 'invalid_type'],
+      ['too_small', 'invalid_format'],
       array_map(fn($issue) => $issue->code, $result->issues)
     );
   }
@@ -188,7 +188,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(5, $result->data);
   }
 
-  public function test_parseType_WithSingleMember_ShouldBehaveLikeMember(): void {
+  public function test_parseType_WithSingleMember_ShouldAcceptMemberValueAndReportInvalidUnion(): void {
     $schema = new UnionSchema([new IntegerSchema()]);
 
     $valid = $schema->safeParse(10);
@@ -198,7 +198,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(10, $valid->data);
     $this->assertFalse($invalid->success);
     $this->assertCount(1, $invalid->issues);
-    $this->assertSame('invalid_type', $invalid->issues[0]->code);
+    $this->assertSame('invalid_union', $invalid->issues[0]->code);
   }
 
   public function test_parseType_WithNoMembers_ShouldFailWithIssue(): void {
@@ -226,11 +226,11 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $result = $schema->safeParse(true);
 
+    $this->assertCount(1, $result->issues);
     $this->assertSame([], $result->issues[0]->path);
-    $this->assertSame([], $result->issues[1]->path);
   }
 
-  public function test_parseType_WithNull_ShouldFailRequiredWithoutCallingMembers(): void {
+  public function test_parseType_WithNullAndNoMemberAcceptingNull_ShouldFailRequired(): void {
     $schema = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
     $result = $schema->safeParse(null);
@@ -241,23 +241,22 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame([], $result->issues[0]->path);
   }
 
-  public function test_parseType_WithNullAndOptionalMember_ShouldFailRequired(): void {
+  public function test_parseType_WithNullAndOptionalMember_ShouldAcceptNull(): void {
     $schema = new UnionSchema([new StringSchema(), (new IntegerSchema())->optional()]);
 
     $result = $schema->safeParse(null);
 
-    $this->assertFalse($result->success);
-    $this->assertCount(1, $result->issues);
-    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
   }
 
-  public function test_parseType_WithNullAndMemberDefault_ShouldFailRequired(): void {
+  public function test_parseType_WithNullAndMemberDefault_ShouldReturnMemberDefault(): void {
     $schema = new UnionSchema([(new StringSchema())->_default('fallback'), new IntegerSchema()]);
 
     $result = $schema->safeParse(null);
 
-    $this->assertFalse($result->success);
-    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertTrue($result->success);
+    $this->assertSame('fallback', $result->data);
   }
 
   public function test_optional_WithNull_ShouldReturnNullWithoutCallingMembers(): void {
@@ -276,7 +275,8 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse(true);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
   }
 
   public function test_default_WithNull_ShouldParseDefaultThroughMembers(): void {
@@ -306,8 +306,8 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse(null);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
   }
 
   public function test_refine_WithUnionRuleFailing_ShouldReturnCustomIssue(): void {
@@ -362,7 +362,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertFalse($called);
-    $this->assertSame(['invalid_type', 'invalid_type'], array_map(fn($issue) => $issue->code, $result->issues));
+    $this->assertSame(['invalid_union'], array_map(fn($issue) => $issue->code, $result->issues));
   }
 
   public function test_refine_ShouldReceiveValueParsedByMember(): void {
@@ -410,7 +410,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertFalse($called);
   }
 
-  public function test_validateType_WithUnionInsideObject_ShouldReportFieldPathForEachMember(): void {
+  public function test_validateType_WithUnionInsideObject_ShouldReportFieldPath(): void {
     $schema = new ObjectSchema([
       'id' => new UnionSchema([new StringSchema(), new IntegerSchema()]),
     ]);
@@ -420,9 +420,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse($value);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
     $this->assertSame(['id'], $result->issues[0]->path);
-    $this->assertSame(['id'], $result->issues[1]->path);
   }
 
   public function test_validateType_WithUnionInsideArray_ShouldReportIndexPath(): void {
@@ -431,9 +431,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse([1, 'a', false]);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_union', $result->issues[0]->code);
     $this->assertSame([2], $result->issues[0]->path);
-    $this->assertSame([2], $result->issues[1]->path);
   }
 
   public function test_validateType_WithUnionInsideArray_ShouldReturnParsedElements(): void {
@@ -464,11 +464,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse($value);
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
     $this->assertSame(['users', 1, 'contact'], $result->issues[0]->path);
     $this->assertSame('invalid_format', $result->issues[0]->code);
-    $this->assertSame(['users', 1, 'contact'], $result->issues[1]->path);
-    $this->assertSame('invalid_type', $result->issues[1]->code);
   }
 
   public function test_validateType_WithOptionalUnionInsideObjectAndMissingField_ShouldPass(): void {
@@ -512,7 +510,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame([1, 2, 3], $arrayResult->data);
   }
 
-  public function test_parseType_WithUnionOfObjectAndArrayMatchingNone_ShouldAggregateNestedIssues(): void {
+  public function test_parseType_WithUnionOfObjectAndArrayMatchingNone_ShouldReportIssuesFromDirtyArrayMember(): void {
     $schema = new UnionSchema([
       new ObjectSchema(['name' => new StringSchema()]),
       new ArraySchema(new IntegerSchema()),
@@ -521,11 +519,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse([1, 'x', 3, 'y']);
 
     $this->assertFalse($result->success);
-    $this->assertCount(3, $result->issues);
-    $this->assertSame([], $result->issues[0]->path);
-    $this->assertSame('Expected object, received array', $result->issues[0]->message);
-    $this->assertSame([1], $result->issues[1]->path);
-    $this->assertSame([3], $result->issues[2]->path);
+    $this->assertCount(2, $result->issues);
+    $this->assertSame([1], $result->issues[0]->path);
+    $this->assertSame([3], $result->issues[1]->path);
   }
 
   public function test_parseType_WithUnionOfObjects_ShouldFallBackToSecondWhenFirstFieldFails(): void {
@@ -544,7 +540,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(4, $result->data->side);
   }
 
-  public function test_parseType_WithUnionOfObjectsMatchingNone_ShouldReportFieldIssuesFromEachMember(): void {
+  public function test_parseType_WithUnionOfObjectsMatchingNone_ShouldReportFieldIssuesFromFirstMember(): void {
     $schema = new UnionSchema([
       new ObjectSchema(['radius' => new IntegerSchema()]),
       new ObjectSchema(['side' => new IntegerSchema()]),
@@ -553,11 +549,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse(new \stdClass());
 
     $this->assertFalse($result->success);
-    $this->assertCount(2, $result->issues);
+    $this->assertCount(1, $result->issues);
     $this->assertSame(['radius'], $result->issues[0]->path);
     $this->assertSame('required', $result->issues[0]->code);
-    $this->assertSame(['side'], $result->issues[1]->path);
-    $this->assertSame('required', $result->issues[1]->code);
   }
 
   public function test_parseType_WithStrictObjectFirst_ShouldFallBackToObjectAcceptingExtraKey(): void {
@@ -576,7 +570,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame(1, $result->data->b);
   }
 
-  public function test_parseType_WithStrictObjectFirstAndInvalidExtraKey_ShouldReportExtraKeyPathFromEachMember(): void {
+  public function test_parseType_WithStrictObjectFirstAndInvalidExtraKey_ShouldReportExtraKeyFromFirstMember(): void {
     $schema = new UnionSchema([
       (new ObjectSchema(['a' => new StringSchema()]))->strict(),
       new ObjectSchema(['a' => new StringSchema(), 'b' => new IntegerSchema()]),
@@ -589,16 +583,16 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame(
-      [['b'], ['b']],
+      [['b']],
       array_map(fn($issue) => $issue->path, $result->issues)
     );
     $this->assertSame(
-      ['unrecognized_keys', 'invalid_type'],
+      ['unrecognized_keys'],
       array_map(fn($issue) => $issue->code, $result->issues)
     );
   }
 
-  public function test_parseType_WithNestedUnion_ShouldFlattenIssuesFromInnerUnion(): void {
+  public function test_parseType_WithNestedUnionMatchingNone_ShouldReportSingleInvalidUnion(): void {
     $schema = new UnionSchema([
       new UnionSchema([new StringSchema(), new IntegerSchema()]),
       new BooleanSchema(),
@@ -610,22 +604,146 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertTrue($valid->success);
     $this->assertFalse($valid->data);
     $this->assertFalse($invalid->success);
-    $this->assertCount(3, $invalid->issues);
+    $this->assertCount(1, $invalid->issues);
+    $this->assertSame('invalid_union', $invalid->issues[0]->code);
   }
 
-  public function test_parse_WithNoMemberMatching_ShouldThrowWithAllIssues(): void {
+  public function test_parse_WithNoMemberMatching_ShouldThrowWithInvalidUnion(): void {
     $schema = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
     try {
       $schema->parse(true);
       $this->fail('Expected ValidatorException');
     } catch (ValidatorException $exception) {
-      $this->assertCount(2, $exception->getIssues());
+      $this->assertCount(1, $exception->getIssues());
       $this->assertSame(
-        ['' => ['Expected string, received boolean', 'Expected integer, received boolean']],
+        ['' => ['Invalid input']],
         $exception->getMessagesByPath()
       );
     }
+  }
+
+  public function test_parseType_WithNullAndNullMember_ShouldAcceptNull(): void {
+    $schema = V::union(V::string(), V::null());
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_parseType_WithNullAndDirtyMember_ShouldStillFailRequired(): void {
+    $schema = V::union(
+      V::null()->refine(fn(mixed $v, array $p): bool => false, 'never'),
+      V::int()
+    );
+
+    $result = $schema->safeParse(null);
+
+    $this->assertFalse($result->success);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('required', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithCleanMemberBeforeDirty_ShouldReportDirtyMember(): void {
+    $schema = V::union(V::int(), V::string()->min(5));
+
+    $result = $schema->safeParse('abc');
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithTwoDirtyMembers_ShouldReportFirstDirty(): void {
+    $schema = V::union(V::string()->min(5), V::string()->email());
+
+    $result = $schema->safeParse('abc');
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithNestedUnion_ShouldPassThroughDirtyResult(): void {
+    $inner = V::union(V::string()->min(5), V::int());
+    $schema = V::union($inner, V::boolean());
+
+    $result = $schema->safeParse('abc');
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_small', $result->issues[0]->code);
+    $this->assertTrue($result->dirty);
+  }
+
+  public function test_parseType_WithWrongDiscriminantInObjectMember_ShouldReportFirstObjectMember(): void {
+    $schema = V::union(
+      V::object(['kind' => V::literal('circle'), 'radius' => V::int()]),
+      V::object(['kind' => V::literal('square'), 'side' => V::int()])
+    );
+
+    $result = $schema->safeParse((object) ['kind' => 'square', 'side' => 'x']);
+
+    $this->assertSame(
+      ['invalid_literal', 'required'],
+      array_map(fn($issue) => $issue->code, $result->issues)
+    );
+    $this->assertSame(
+      [['kind'], ['radius']],
+      array_map(fn($issue) => $issue->path, $result->issues)
+    );
+    $this->assertSame("Expected literal 'circle'", $result->issues[0]->message);
+  }
+
+  public function test_parseType_WithSuccessfulMember_ShouldReturnMemberResultInstance(): void {
+    $expected = ParseResult::ok('member');
+    $member = new class($expected) extends Schema {
+
+      public function __construct(private ParseResult $result) {
+      }
+
+      #[Override]
+      protected function _parse(mixed $value, array $path = []): ParseResult {
+        return $this->result;
+      }
+
+      #[Override]
+      protected function parseType(mixed $value, array $path = []): ParseResult {
+        return $this->result;
+      }
+    };
+    $union = new UnionSchema([$member]);
+
+    $result = (new ReflectionMethod(UnionSchema::class, 'parseType'))->invoke($union, 'x', []);
+
+    $this->assertSame($expected, $result);
+  }
+
+  public function test_refine_WithNullAcceptedByMember_ShouldRunUnionRulesOnNull(): void {
+    $schema = V::union(V::null(), V::int())
+      ->refine(fn(mixed $v, array $p): bool => $v !== null, 'no null');
+
+    $result = $schema->safeParse(null);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('custom', $result->issues[0]->code);
+    $this->assertSame('no null', $result->issues[0]->message);
+  }
+
+  public function test_parseType_WithOptionalInnerUnionAndNull_ShouldAcceptNull(): void {
+    $schema = V::union(V::union(V::int(), V::string())->optional(), V::boolean());
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_validateType_WithNullableUnionInsideArray_ShouldAcceptNullElements(): void {
+    $schema = V::_array(V::union(V::null(), V::int()));
+
+    $result = $schema->safeParse([null, 1]);
+
+    $this->assertTrue($result->success);
+    $this->assertSame([null, 1], $result->data);
   }
 
   public function test_parse_WithMatchingMember_ShouldReturnParsedValue(): void {
@@ -731,9 +849,8 @@ class UnionSchemaTest extends BaseSchemaTestCase {
         $this->assertCount(1, $result->issues);
         $this->assertSame('required', $result->issues[0]->code);
       } else {
-        $this->assertCount(2, $result->issues, "Type $typeName should collect one issue per member");
-        $this->assertSame('invalid_type', $result->issues[0]->code);
-        $this->assertSame('invalid_type', $result->issues[1]->code);
+        $this->assertCount(1, $result->issues, "Type $typeName should report a single issue");
+        $this->assertSame('invalid_union', $result->issues[0]->code);
       }
     }
   }
@@ -755,12 +872,12 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     } else {
       $this->assertFalse($result->success, "Type $typeName should be invalid");
 
+      $this->assertCount(1, $result->issues);
+
       if ($value === null) {
         $this->assertSame('required', $result->issues[0]->code);
       } else {
-        $this->assertCount(2, $result->issues);
-        $this->assertSame('invalid_type', $result->issues[0]->code);
-        $this->assertSame('invalid_type', $result->issues[1]->code);
+        $this->assertSame('invalid_union', $result->issues[0]->code);
       }
     }
   }

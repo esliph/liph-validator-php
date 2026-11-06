@@ -27,6 +27,20 @@ final class UnionSchema extends Schema {
     );
   }
 
+  /**
+   * O `null` segue para as opções, e cada uma decide com o próprio `optional()`,
+   * default ou `V::null()`.
+   */
+  #[Override]
+  protected function acceptsNull(): bool {
+    return true;
+  }
+
+  /**
+   * A primeira opção que passa vence. Se nenhuma passa: `required` para `null`;
+   * senão o resultado da primeira opção suja, que reconheceu o tipo e falhou numa
+   * regra ou num filho; senão uma única `invalid_union`.
+   */
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     if ($this->schemas === []) {
@@ -39,18 +53,40 @@ final class UnionSchema extends Schema {
       );
     }
 
-    $issues = [];
+    $firstDirty = null;
 
     foreach ($this->schemas as $schema) {
       $result = $schema->_parse($value, $path);
 
       if ($result->success) {
-        return ParseResult::ok($result->data);
+        return $result;
       }
 
-      $issues = array_merge($issues, $result->issues);
+      if ($firstDirty === null && $result->dirty) {
+        $firstDirty = $result;
+      }
     }
 
-    return ParseResult::fails($issues);
+    if ($value === null) {
+      return ParseResult::fail(
+        new Issue(
+          path: $path,
+          message: 'Value is required',
+          code: 'required'
+        )
+      );
+    }
+
+    if ($firstDirty !== null) {
+      return $firstDirty;
+    }
+
+    return ParseResult::fail(
+      new Issue(
+        path: $path,
+        message: 'Invalid input',
+        code: 'invalid_union'
+      )
+    );
   }
 }
