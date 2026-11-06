@@ -36,11 +36,11 @@ abstract class Schema {
    */
   protected function _parse(mixed $value, array $path = []): ParseResult {
     if (is_null($value)) {
-      if (!$this->hasDefault) {
-        if ($this->isOptional) {
-          return ParseResult::ok();
-        }
-
+      if ($this->hasDefault) {
+        $value = $this->resolveDefault();
+      } elseif ($this->isOptional) {
+        return ParseResult::ok();
+      } elseif (!$this->acceptsNull()) {
         return ParseResult::fail(
           new Issue(
             path: $path,
@@ -49,8 +49,6 @@ abstract class Schema {
           )
         );
       }
-
-      $value = $this->resolveDefault();
     }
 
     $typeResult = $this->parseType($value, $path);
@@ -64,13 +62,13 @@ abstract class Schema {
     $issues = $this->validateRules($value, $path);
 
     if (!empty($issues)) {
-      return ParseResult::fails($issues);
+      return ParseResult::dirty($issues);
     }
 
     $typeResult = $this->validateType($value, $path);
 
     if (!$typeResult->success) {
-      return $typeResult;
+      return $typeResult->dirty ? $typeResult : ParseResult::dirty($typeResult->issues);
     }
 
     $value = $typeResult->data;
@@ -78,6 +76,14 @@ abstract class Schema {
     $value = $this->applyTransforms($value);
 
     return ParseResult::ok($value);
+  }
+
+  /**
+   * Sem default nem `optional`, o `null` só segue para o `parseType` quando o
+   * schema o aceita como valor.
+   */
+  protected function acceptsNull(): bool {
+    return false;
   }
 
   /**

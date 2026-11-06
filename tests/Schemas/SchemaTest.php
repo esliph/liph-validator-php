@@ -764,4 +764,109 @@ class SchemaTest extends TestCase {
       $this->assertNotSame($result1->data->value, $result2->data->value);
     }
   }
+
+  public function test_acceptsNull_WithNull_ShouldReachParseType(): void {
+    $schema = $this->nullAcceptingSchema();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('reached parseType', $result->data);
+  }
+
+  public function test_acceptsNull_WithDefault_ShouldResolveDefaultFirst(): void {
+    $schema = $this->nullAcceptingSchema()->_default('fallback');
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('fallback', $result->data);
+  }
+
+  public function test_acceptsNull_WithOptional_ShouldReturnNullBeforeParseType(): void {
+    $schema = $this->nullAcceptingSchema()->optional();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_nullHandling_WithNullAndNoOptions_ShouldReturnCleanResult(): void {
+    $schema = new TestSchema();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertFalse($result->dirty);
+  }
+
+  public function test_validateRules_WithFailingRule_ShouldReturnDirtyResult(): void {
+    $schema = (new TestSchema())->refine(fn(mixed $v, array $p): bool => false);
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($result->success);
+    $this->assertTrue($result->dirty);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('custom', $result->issues[0]->code);
+  }
+
+  public function test_validateType_WithFailure_ShouldReturnDirtyResult(): void {
+    $schema = new TestSchema(
+      checkValid: static fn(mixed $value, array $path): ParseResult => ParseResult::fail(
+        new Issue(path: $path, message: 'Invalid value', code: 'invalid_type')
+      )
+    );
+
+    $result = $schema->safeParse(1);
+
+    $this->assertTrue($result->dirty);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('Invalid value', $result->issues[0]->message);
+  }
+
+  public function test_validateType_WithDirtyFailure_ShouldReturnSameInstance(): void {
+    $dirty = ParseResult::dirty([new Issue(path: [], message: 'Invalid value', code: 'too_small')]);
+    $schema = new TestSchema(
+      checkValid: static fn(mixed $value, array $path): ParseResult => $dirty
+    );
+
+    $this->assertSame($dirty, $schema->safeParse(1));
+  }
+
+  public function test_parseType_WithFailure_ShouldReturnCleanResult(): void {
+    $schema = new TestSchema(
+      checkType: static fn(mixed $value, array $path): ParseResult => ParseResult::fail(
+        new Issue(path: $path, message: 'Invalid type', code: 'invalid_type')
+      )
+    );
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($result->dirty);
+  }
+
+  public function test_parseType_WithDirtyFailure_ShouldReturnSameInstance(): void {
+    $dirty = ParseResult::dirty([new Issue(path: [], message: 'Invalid value', code: 'too_small')]);
+    $schema = new TestSchema(
+      checkType: static fn(mixed $value, array $path): ParseResult => $dirty
+    );
+
+    $this->assertSame($dirty, $schema->safeParse(1));
+  }
+
+  private function nullAcceptingSchema(): Schema {
+    return new class extends Schema {
+
+      #[Override]
+      protected function acceptsNull(): bool {
+        return true;
+      }
+
+      #[Override]
+      protected function parseType(mixed $value, array $path = []): ParseResult {
+        return ParseResult::ok($value ?? 'reached parseType');
+      }
+    };
+  }
 }

@@ -41,10 +41,10 @@ Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subj
 - `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value.
 
 **`Schema::_parse($value, $path)` pipeline** (order matters):
-1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`, or a `required` issue.
-2. `parseType()` (abstract) — type check + coercion; a failure short-circuits.
-3. `validateRules()` — runs every accumulated `Rule`, collecting *all* issues (does not stop at the first one).
-4. `validateType()` — hook for validating children (e.g. `ObjectSchema` validates each shape field, strict/catchall/passthrough mode; `ArraySchema` validates elements). No-op by default.
+1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`; otherwise a `required` issue if `acceptsNull()` (default `false`) is false; otherwise continues to `parseType()` with `null`.
+2. `parseType()` (abstract) — type check + coercion; a failure short-circuits and is returned as it came.
+3. `validateRules()` — runs every accumulated `Rule`, collecting *all* issues (does not stop at the first one). A failure comes out as `ParseResult::dirty`.
+4. `validateType()` — hook for validating children (e.g. `ObjectSchema` validates each shape field, strict/catchall/passthrough mode; `ArraySchema` validates elements). No-op by default. A failure comes out as `ParseResult::dirty` (kept as is if already dirty).
 5. `applyTransforms()` — transforms only run if everything passed.
 
 Composite schemas call `$child->_parse($v, [...$path, $key])` directly on their children, propagating the `path` that becomes `Issue::$path`.
