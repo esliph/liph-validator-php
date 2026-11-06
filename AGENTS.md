@@ -38,7 +38,7 @@ Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subj
 - `Schema` (abstract) — parse pipeline, rules, transforms, `optional()`, `_default()`, `refine()`.
 - `CoercibleSchema` — adds the `coerce()` flag; each subclass decides in `parseType` what to coerce.
 - `Primitive/`: `NumberSchema` (base of `IntegerSchema` and `FloatSchema`), `StringSchema`, `BooleanSchema`, `DateSchema`.
-- `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value.
+- `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value. `NullSchema` accepts only `null` (`acceptsNull()` is true).
 
 **`Schema::_parse($value, $path)` pipeline** (order matters):
 1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`; otherwise a `required` issue if `acceptsNull()` (default `false`) is false; otherwise continues to `parseType()` with `null`.

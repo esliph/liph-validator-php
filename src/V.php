@@ -12,6 +12,7 @@ use Esliph\Validator\Schemas\Primitive\NumberSchema;
 use Esliph\Validator\Schemas\Primitive\FloatSchema;
 use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\MixedSchema;
+use Esliph\Validator\Schemas\NullSchema;
 use Esliph\Validator\Schemas\Schema;
 
 final class V {
@@ -42,6 +43,10 @@ final class V {
 
   public static function mixed(): MixedSchema {
     return new MixedSchema();
+  }
+
+  public static function null(): NullSchema {
+    return new NullSchema();
   }
 
   /**
