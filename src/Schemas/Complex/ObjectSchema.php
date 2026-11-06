@@ -183,9 +183,14 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws LogicException depois de refine() ou transform()
+   * @throws LogicException depois de refine() ou transform(), ou se `$other`
+   * tiver refine() ou transform(), que se perderiam no merge
    */
   public function merge(self $other): static {
+    if ($other->hasRefineOrTransform()) {
+      throw new LogicException('cannot merge an object schema that has refine() or transform()');
+    }
+
     return $this->withShape(array_replace($this->shape, $other->shape));
   }
 
@@ -258,20 +263,28 @@ final class ObjectSchema extends CoercibleSchema {
    * @throws LogicException depois de refine() ou transform()
    */
   private function withShape(array $shape): static {
-    if ($this->transforms !== []) {
+    if ($this->hasRefineOrTransform()) {
       throw new LogicException('cannot derive an object schema after refine() or transform()');
-    }
-
-    foreach ($this->rules as $rule) {
-      if ($rule->name === 'refinement') {
-        throw new LogicException('cannot derive an object schema after refine() or transform()');
-      }
     }
 
     $clone = clone $this;
     $clone->shape = $shape;
 
     return $clone;
+  }
+
+  private function hasRefineOrTransform(): bool {
+    if ($this->transforms !== []) {
+      return true;
+    }
+
+    foreach ($this->rules as $rule) {
+      if ($rule->name === 'refinement') {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

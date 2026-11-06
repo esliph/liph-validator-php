@@ -798,6 +798,28 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $derive($base);
   }
 
+  /**
+   * @return iterable<string, array{Closure(ObjectSchema): ObjectSchema}>
+   */
+  public static function provideOtherDerivedObjects(): iterable {
+    yield 'refine' => [fn(ObjectSchema $s) => $s->refine(fn(mixed $v): bool => true)];
+    yield 'transform' => [fn(ObjectSchema $s) => $s->transform(fn(mixed $v): mixed => $v)];
+    yield 'asArray' => [fn(ObjectSchema $s) => $s->asArray()];
+  }
+
+  /**
+   * @param Closure(ObjectSchema): ObjectSchema $finalize
+   */
+  #[DataProvider('provideOtherDerivedObjects')]
+  public function test_merge_WithOtherAfterRefineOrTransform_ShouldThrowLogicException(Closure $finalize): void {
+    $other = $finalize(new ObjectSchema(['x' => new StringSchema()]));
+
+    $this->expectException(LogicException::class);
+    $this->expectExceptionMessage('cannot merge an object schema that has refine() or transform()');
+
+    $this->createUserSchema()->merge($other);
+  }
+
   public function test_pick_AfterAsArray_ShouldThrowLogicException(): void {
     $this->expectException(LogicException::class);
     $this->expectExceptionMessage('cannot derive an object schema after refine() or transform()');
