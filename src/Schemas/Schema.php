@@ -7,6 +7,7 @@ use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Errors\ValidatorException;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use UnitEnum;
 
 abstract class Schema {
 
@@ -200,6 +201,18 @@ abstract class Schema {
     $clone->isOptional = true;
 
     return $clone;
+  }
+
+  /**
+   * Representação de um valor esperado nas mensagens: o case de enum sai como
+   * `Classe::Case`, e o resto como `var_export`.
+   */
+  protected static function formatValue(mixed $value): string {
+    if ($value instanceof UnitEnum) {
+      return $value::class . '::' . $value->name;
+    }
+
+    return var_export($value, true);
   }
 
   protected function isAssociativeArray(array $array): bool {

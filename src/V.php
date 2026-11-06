@@ -13,7 +13,9 @@ use Esliph\Validator\Schemas\Primitive\FloatSchema;
 use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\MixedSchema;
 use Esliph\Validator\Schemas\NullSchema;
+use Esliph\Validator\Schemas\LiteralSchema;
 use Esliph\Validator\Schemas\Schema;
+use UnitEnum;
 
 final class V {
 
@@ -47,6 +49,10 @@ final class V {
 
   public static function null(): NullSchema {
     return new NullSchema();
+  }
+
+  public static function literal(string|int|float|bool|null|UnitEnum $value): LiteralSchema {
+    return new LiteralSchema($value);
   }
 
   /**

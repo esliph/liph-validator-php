@@ -38,7 +38,7 @@ Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subj
 - `Schema` (abstract) — parse pipeline, rules, transforms, `optional()`, `_default()`, `refine()`.
 - `CoercibleSchema` — adds the `coerce()` flag; each subclass decides in `parseType` what to coerce.
 - `Primitive/`: `NumberSchema` (base of `IntegerSchema` and `FloatSchema`), `StringSchema`, `BooleanSchema`, `DateSchema`.
-- `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value. `NullSchema` accepts only `null` (`acceptsNull()` is true).
+- `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema`. `MixedSchema` accepts any value. `NullSchema` accepts only `null` (`acceptsNull()` is true). `LiteralSchema` accepts only the given value (`===` comparison; accepts `null` when the literal is `null`).
 
 **`Schema::_parse($value, $path)` pipeline** (order matters):
 1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`; otherwise a `required` issue if `acceptsNull()` (default `false`) is false; otherwise continues to `parseType()` with `null`.
@@ -54,7 +54,8 @@ Composite schemas call `$child->_parse($v, [...$path, $key])` directly on their 
 **Rules and errors:**
 - `Validation\Rule` (readonly): `name`, `code`, `check: Closure(mixed $value, array $params): bool`, `message: string|Closure(mixed, array): string`, `params`. New validations must be created as a `Rule` with parameterized values in `params` (not captured in the closure) and a default message via closure.
 - `Results\ParseResult` (readonly, private constructor): `ok($data)`, `fail(Issue)` for a single issue, `fails(Issue[])` for several. `dirty(Issue[])` and the `$dirty` flag are `@internal`: `dirty` is `true` when the failure happened after the type check (rules or children), and it is what the union uses to pick the member it reports.
-- `Errors\Issue`: `path`, `message`, `code`. Codes are free-form strings (no enum); reuse the existing ones (`required`, `invalid_type`, `too_small`, `too_big`, `invalid_format`, `custom` from `refine`, etc. — see `grep -rhoE "code: '[a-z_]+'" src | sort -u`) before inventing a new one.
+- `Errors\Issue`: `path`, `message`, `code`. Codes are free-form strings (no enum); reuse the existing ones (`required`, `invalid_type`, `too_small`, `too_big`, `invalid_format`, `custom` from `refine`, `invalid_literal`, etc. — see `grep -rhoE "code: '[a-z_]+'" src | sort -u`) before inventing a new one.
+- `Schema::formatValue($value)` (protected static) formats an expected value for messages: `Class::Case` for enum cases, `var_export` otherwise (e.g. "Expected literal 'a'").
 - `parse()` throws `ValidatorException` (with path-grouping helpers: `getMessagesByPath`, `getFlatMessages`, `toArray`, `toJson`); `safeParse()` returns `ParseResult`; `isValid()` returns bool.
 
 ## Tests
