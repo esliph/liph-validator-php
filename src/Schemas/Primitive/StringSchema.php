@@ -8,20 +8,23 @@ use Esliph\Validator\Validation\Rule;
 use Closure;
 use InvalidArgumentException;
 use Override;
+use Stringable;
 
 final class StringSchema extends CoercibleSchema {
+
+  #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (is_int($value) || is_float($value) && is_finite($value) || $value instanceof Stringable) {
+      return (string) $value;
+    }
+
+    return $value;
+  }
 
   #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_string($value)) {
       return ParseResult::ok($value);
-    }
-
-    if (
-      $this->coerce
-      && (is_scalar($value) || $value === null || is_object($value) && method_exists($value, '__toString'))
-    ) {
-      return ParseResult::ok((string) $value);
     }
 
     return ParseResult::fail($this->typeIssue('string', $input, $path));

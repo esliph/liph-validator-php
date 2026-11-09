@@ -851,7 +851,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    $isStringCoercible = is_scalar($value);
+    $isStringCoercible = is_string($value) || is_int($value) || is_float($value) && is_finite($value);
 
     if (is_bool($value)) {
       $this->assertTrue($result->success, "Type $typeName should be accepted by the first member");

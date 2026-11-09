@@ -177,13 +177,58 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('3.14', $result->data);
   }
 
-  public function test_parseType_WithCoerceAndBoolean_ShouldCoerce(): void {
+  public function test_parseType_WithCoerceAndBoolean_ShouldFail(): void {
     $schema = (new StringSchema())->coerce();
 
     $result = $schema->safeParse(true);
 
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  /** @return array<string, array{mixed, string}> */
+  public static function provideCoercibleToString(): array {
+    return [
+      'int' => [42, '42'],
+      'negative_int' => [-7, '-7'],
+      'float' => [1.5, '1.5'],
+      'whole_float' => [3.0, '3'],
+      'stringable' => [new class implements \Stringable {
+        public function __toString(): string {
+          return 'abc';
+        }
+      }, 'abc'],
+    ];
+  }
+
+  #[DataProvider('provideCoercibleToString')]
+  public function test_coerce_WithCoercibleValue_ShouldCastToString(mixed $input, string $expected): void {
+    $result = (new StringSchema())->coerce()->safeParse($input);
+
     $this->assertTrue($result->success);
-    $this->assertSame('1', $result->data);
+    $this->assertSame($expected, $result->data);
+  }
+
+  /** @return array<string, array{mixed, string}> */
+  public static function provideNonCoercibleToString(): array {
+    return [
+      'true' => [true, 'bool'],
+      'false' => [false, 'bool'],
+      'inf' => [INF, 'float'],
+      'neg_inf' => [-INF, 'float'],
+      'nan' => [NAN, 'float'],
+      'array' => [[], 'array'],
+      'object' => [new \stdClass(), 'stdClass'],
+    ];
+  }
+
+  #[DataProvider('provideNonCoercibleToString')]
+  public function test_coerce_WithNonCoercibleValue_ShouldFailInvalidType(mixed $input, string $received): void {
+    $result = (new StringSchema())->coerce()->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame("Expected string, received $received", $result->issues[0]->message);
   }
 
   public function test_parseType_WithCoerceAndArray_ShouldFail(): void {
@@ -1252,7 +1297,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    $shouldCoerce = is_string($value) || is_int($value) || is_float($value) || is_bool($value);
+    $shouldCoerce = is_string($value) || is_int($value) || is_float($value) && is_finite($value) || $value instanceof \Stringable;
 
     if ($shouldCoerce) {
       $this->assertTrue($result->success, "Type $typeName should coerce successfully");
