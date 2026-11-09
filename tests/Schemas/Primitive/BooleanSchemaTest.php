@@ -254,13 +254,13 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->data);
   }
 
-  public function test_coerce_WithEmptyString_ShouldCoerceToFalse(): void {
+  public function test_coerce_WithEmptyString_ShouldFailRequired(): void {
     $schema = (new BooleanSchema())->coerce();
 
     $result = $schema->safeParse('');
 
-    $this->assertTrue($result->success);
-    $this->assertFalse($result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('required', $result->issues[0]->code);
   }
 
   public function test_coerce_WithStringWithLeadingWhitespace_ShouldCoerceToTrue(): void {
@@ -727,7 +727,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
       $parsed = mb_strtolower(trim($value));
     }
 
-    $knownCoerceableValues = [true, false, 1, 0, '1', '0', 'true', 'false', 'yes', 'no', 'on', 'off', ''];
+    $knownCoerceableValues = [true, false, 1, 0, '1', '0', 'true', 'false', 'yes', 'no', 'on', 'off'];
     $shouldSucceed = in_array($parsed, $knownCoerceableValues, true);
 
     if ($shouldSucceed) {
@@ -736,7 +736,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     } else {
       $this->assertFalse($result->success, "Type $typeName should fail coercion");
 
-      if ($value === null) {
+      if ($value === null || (is_string($value) && trim($value) === '')) {
         $this->assertSame('required', $result->issues[0]->code);
       } else {
         $this->assertSame('invalid_type', $result->issues[0]->code);
@@ -782,7 +782,7 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
   public function test_coerce_WithFalsyStringVariations_ShouldAllCoerceToFalse(): void {
     $schema = (new BooleanSchema())->coerce();
 
-    $falsyStrings = ['false', 'FALSE', 'False', 'FaLsE', '0', 'no', 'NO', 'No', 'off', 'OFF', 'Off', ''];
+    $falsyStrings = ['false', 'FALSE', 'False', 'FaLsE', '0', 'no', 'NO', 'No', 'off', 'OFF', 'Off'];
 
     foreach ($falsyStrings as $str) {
       $result = $schema->safeParse($str);

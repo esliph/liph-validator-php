@@ -204,7 +204,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     } else {
       $this->assertFalse($result->success, "Type $typeName should fail coercion");
 
-      if ($value === null) {
+      if ($value === null || (is_string($value) && trim($value) === '')) {
         $this->assertSame('required', $result->issues[0]->code);
       } elseif (is_string($value)) {
         $this->assertSame('invalid_date', $result->issues[0]->code);
@@ -300,22 +300,22 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithEmptyString_ShouldFailWithInvalidDate(): void {
+  public function test_coerce_WithEmptyString_ShouldFailRequired(): void {
     $schema = (new DateSchema())->coerce();
 
     $result = $schema->safeParse('');
 
     $this->assertFalse($result->success, 'Empty string must not be coerced to the current date');
-    $this->assertSame('invalid_date', $result->issues[0]->code);
+    $this->assertSame('required', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithWhitespaceString_ShouldFailWithInvalidDate(): void {
+  public function test_coerce_WithWhitespaceString_ShouldFailRequired(): void {
     $schema = (new DateSchema())->coerce();
 
     $result = $schema->safeParse('   ');
 
     $this->assertFalse($result->success, 'Whitespace-only string must not be coerced to the current date');
-    $this->assertSame('invalid_date', $result->issues[0]->code);
+    $this->assertSame('required', $result->issues[0]->code);
   }
 
   public function test_coerce_WithOverflowingDayOfMonth_ShouldFailWithInvalidDate(): void {
@@ -422,13 +422,13 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
 
-  public function test_format_WithEmptyString_ShouldFailWithInvalidDate(): void {
+  public function test_format_WithEmptyString_ShouldFailRequired(): void {
     $schema = (new DateSchema())->coerce()->format('Y-m-d');
 
     $result = $schema->safeParse('');
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_date', $result->issues[0]->code);
+    $this->assertSame('required', $result->issues[0]->code);
   }
 
   public function test_format_WithStringAcceptedByConstructorButNotByFormat_ShouldFail(): void {

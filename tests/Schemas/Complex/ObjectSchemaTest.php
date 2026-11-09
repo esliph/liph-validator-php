@@ -99,7 +99,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     } else {
       $this->assertFalse($result->success, "Type $typeName should fail coercion");
 
-      if ($value === null) {
+      if ($value === null || (is_string($value) && trim($value) === '')) {
         $this->assertSame('required', $result->issues[0]->code);
       } else {
         $this->assertSame('invalid_type', $result->issues[0]->code);

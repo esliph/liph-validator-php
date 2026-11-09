@@ -10,4 +10,8 @@ abstract class CoercibleSchema extends Schema {
 
     return $clone;
   }
+
+  protected static function isBlank(mixed $value): bool {
+    return is_string($value) && trim($value) === '';
+  }
 }

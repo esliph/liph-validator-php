@@ -936,4 +936,25 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     V::union(V::string(), V::int())->messages(['invalid_type' => 'x']);
   }
+
+  public function test_parseType_WithBlankStringAndOptionalCoercedIntFirst_ShouldAcceptNull(): void {
+    $result = V::union(V::int()->coerce()->optional(), V::string())->safeParse('');
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_parseType_WithBlankStringAndRequiredCoercedIntFirst_ShouldFallBackToString(): void {
+    $result = V::union(V::int()->coerce(), V::string())->safeParse('');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('', $result->data);
+  }
+
+  public function test_parseType_WithBlankStringAndCoercedBooleanFirst_ShouldFallBackToString(): void {
+    $result = V::union(V::boolean()->coerce(), V::string())->safeParse('');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('', $result->data);
+  }
 }

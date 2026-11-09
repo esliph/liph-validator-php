@@ -20,6 +20,15 @@ class NumberSchema extends CoercibleSchema {
   }
 
   #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
+    }
+
+    return $value;
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       // Aritmética de string numérica: inteiro que cabe vira int, o resto vira float.

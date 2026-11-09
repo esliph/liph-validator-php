@@ -20,6 +20,11 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
   }
 
   #[Override]
+  protected function blankCoercesToNull(): bool {
+    return false;
+  }
+
+  #[Override]
   protected function getValidValue(): mixed {
     return 'valid string';
   }

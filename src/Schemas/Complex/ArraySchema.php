@@ -18,6 +18,15 @@ final class ArraySchema extends CoercibleSchema {
   }
 
   #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
+    }
+
+    return $value;
+  }
+
+  #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value)) {
       try {

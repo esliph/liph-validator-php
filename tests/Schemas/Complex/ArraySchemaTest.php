@@ -182,7 +182,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     } else {
       $this->assertFalse($result->success, "Type $typeName should fail coercion");
 
-      if ($value === null) {
+      if ($value === null || (is_string($value) && trim($value) === '')) {
         $this->assertSame('required', $result->issues[0]->code);
       } else {
         $this->assertSame('invalid_type', $result->issues[0]->code);
@@ -246,13 +246,13 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Expected array, received string', $result->issues[0]->message);
   }
 
-  public function test_coerce_WithEmptyString_ShouldFailWithInvalidType(): void {
+  public function test_coerce_WithEmptyString_ShouldFailRequired(): void {
     $schema = (new ArraySchema())->coerce();
 
     $result = $schema->safeParse('');
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('required', $result->issues[0]->code);
   }
 
   public function test_coerce_WithJsonScalarStrings_ShouldFailWithInvalidType(): void {
