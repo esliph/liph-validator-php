@@ -12,6 +12,7 @@ use Esliph\Validator\Schemas\Complex\ArraySchema;
 use Esliph\Validator\Schemas\Complex\ObjectSchema;
 use Esliph\Validator\Schemas\Complex\UnionSchema;
 use Esliph\Validator\Schemas\Primitive\BooleanSchema;
+use Esliph\Validator\Schemas\Primitive\FloatSchema;
 use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\Primitive\StringSchema;
 
@@ -180,12 +181,12 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_parseType_WithMemberNormalizingValue_ShouldReturnParsedValueNotOriginal(): void {
-    $schema = new UnionSchema([new IntegerSchema(), new StringSchema()]);
+    $schema = new UnionSchema([new FloatSchema(), new StringSchema()]);
 
-    $result = $schema->safeParse(5.0);
+    $result = $schema->safeParse(5);
 
     $this->assertTrue($result->success);
-    $this->assertSame(5, $result->data);
+    $this->assertSame(5.0, $result->data);
   }
 
   public function test_construct_WithSingleOption_ShouldThrow(): void {
@@ -432,12 +433,12 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_validateType_WithUnionInsideArray_ShouldReturnParsedElements(): void {
-    $schema = new ArraySchema(new UnionSchema([new IntegerSchema(), new StringSchema()]));
+    $schema = new ArraySchema(new UnionSchema([new FloatSchema(), new StringSchema()]));
 
-    $result = $schema->safeParse([1, 'a', 2.0]);
+    $result = $schema->safeParse([1, 'a', 2]);
 
     $this->assertTrue($result->success);
-    $this->assertSame([1, 'a', 2], $result->data);
+    $this->assertSame([1.0, 'a', 2.0], $result->data);
   }
 
   public function test_validateType_WithDeeplyNestedUnion_ShouldReportFullPath(): void {
@@ -742,9 +743,9 @@ class UnionSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_parse_WithMatchingMember_ShouldReturnParsedValue(): void {
-    $schema = new UnionSchema([new IntegerSchema(), new StringSchema()]);
+    $schema = new UnionSchema([new FloatSchema(), new StringSchema()]);
 
-    $this->assertSame(3, $schema->parse(3.0));
+    $this->assertSame(3.0, $schema->parse(3));
   }
 
   public function test_union_FactoryMethod_ShouldBuildEquivalentSchema(): void {
@@ -826,12 +827,11 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    $isWholeFloat = is_float($value) && is_finite($value) && floor($value) === $value;
-    $shouldBeValid = is_string($value) || is_int($value) || $isWholeFloat;
+    $shouldBeValid = is_string($value) || is_int($value);
 
     if ($shouldBeValid) {
       $this->assertTrue($result->success, "Type $typeName should be valid");
-      $this->assertSame($isWholeFloat ? (int) $value : $value, $result->data);
+      $this->assertSame($value, $result->data);
     } else {
       $this->assertFalse($result->success, "Type $typeName should be invalid");
 

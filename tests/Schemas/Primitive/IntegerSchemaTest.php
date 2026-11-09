@@ -67,10 +67,34 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame(['99999999999999999999', ['expected' => 'int', 'received' => 'string']], $received);
   }
 
-  public function test_parse_WithDecimalFloat_ShouldReportDecimalPart(): void {
+  /** @return array<string, array{float}> */
+  public static function provideFiniteFloats(): array {
+    return [
+      'whole' => [3.0], 'negative_zero' => [-0.0], 'decimal' => [1.5],
+      'two_to_the_63' => [9.2233720368547758E18], 'int_min_as_float' => [(float) PHP_INT_MIN],
+    ];
+  }
+
+  #[DataProvider('provideFiniteFloats')]
+  public function test_parseType_WithFloat_ShouldFailInvalidType(float $input): void {
+    $result = (new IntegerSchema())->safeParse($input);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received float', $result->issues[0]->message);
+  }
+
+  #[DataProvider('provideFiniteFloats')]
+  public function test_parseType_WithFloatAndCoerce_ShouldFailInvalidType(float $input): void {
+    $result = (new IntegerSchema())->coerce()->safeParse($input);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received float', $result->issues[0]->message);
+  }
+
+  public function test_parse_WithDecimalFloat_ShouldReportReceivedFloat(): void {
     $result = (new IntegerSchema())->safeParse(1.5);
 
-    $this->assertSame('Expected int, received float with decimal part', $result->issues[0]->message);
+    $this->assertSame('Expected int, received float', $result->issues[0]->message);
     $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
@@ -125,14 +149,13 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
-  public function test_parseType_WithFloatWithoutDecimals_ShouldAccept(): void {
+  public function test_parseType_WithFloatWithoutDecimals_ShouldFail(): void {
     $schema = new IntegerSchema();
 
     $result = (new IntegerSchema())->safeParse(3.0);
 
-    $this->assertTrue($result->success);
-    $this->assertSame(3, $result->data);
-    $this->assertIsInt($result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_parseType_WithZero_ShouldAccept(): void {
@@ -171,12 +194,13 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame(PHP_INT_MAX, $result->data);
   }
 
-  public function test_parseType_WithNegativeZeroFloat_ShouldAccept(): void {
+  public function test_parseType_WithNegativeZeroFloat_ShouldFail(): void {
     $schema = new IntegerSchema();
 
     $result = (new IntegerSchema())->safeParse(-0.0);
 
-    $this->assertTrue($result->success);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_parseType_WithString_ShouldReject(): void {
@@ -247,12 +271,11 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithFloatValue_ShouldConvertToInt(): void {
+  public function test_coerce_WithFloatValue_ShouldFail(): void {
     $result = (new IntegerSchema())->coerce()->safeParse(42.0);
 
-    $this->assertTrue($result->success);
-    $this->assertSame(42, $result->data);
-    $this->assertIsInt($result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_coerce_WithFloatWithDecimals_ShouldFail(): void {
@@ -287,13 +310,13 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame(PHP_INT_MIN, $result->data);
   }
 
-  public function test_boundary_BoundaryFloatEdgeCases_2_0_ShouldAccept(): void {
+  public function test_boundary_BoundaryFloatEdgeCases_2_0_ShouldFail(): void {
     $schema = new IntegerSchema();
 
     $result = (new IntegerSchema())->safeParse(2.0);
 
-    $this->assertTrue($result->success);
-    $this->assertSame(2, $result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_boundary_BoundaryFloatEdgeCases_2_000001_ShouldReject(): void {
@@ -350,11 +373,11 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertFalse($result->success);
   }
 
-  public function test_parseType_WithFloatEqualToIntMin_ShouldAccept(): void {
+  public function test_parseType_WithFloatEqualToIntMin_ShouldFail(): void {
     $result = (new IntegerSchema())->safeParse((float) PHP_INT_MIN);
 
-    $this->assertTrue($result->success);
-    $this->assertSame(PHP_INT_MIN, $result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_coerce_WithIntegerStringAboveIntMax_ShouldReject(): void {
