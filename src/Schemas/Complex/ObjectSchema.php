@@ -15,7 +15,10 @@ use Override;
  * `strip` e sem os opcionais ausentes, que devem ser lidos com `??`.
  *
  * Os campos são lidos por `get_object_vars`: só propriedades públicas
- * inicializadas contam, e o que existe apenas via `__get` não é lido.
+ * inicializadas contam, e o que existe apenas via `__get` não é lido. Objetos
+ * `Traversable` (`ArrayObject`...) não são iterados: as entradas do iterador
+ * não contam como campos nem como chaves desconhecidas, então o `strict` não as
+ * recusa e o `passthrough` não as copia.
  */
 final class ObjectSchema extends CoercibleSchema {
 

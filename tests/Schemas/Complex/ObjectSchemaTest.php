@@ -594,6 +594,16 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['f'], $result->issues[0]->path);
   }
 
+  public function test_strict_WithArrayObjectEntries_ShouldNotSeeStorageKeys(): void {
+    $input = new \ArrayObject(['f' => 'x']);
+
+    $strict = V::object([])->strict()->safeParse($input);
+    $passthrough = V::object([])->passthrough()->safeParse($input);
+
+    $this->assertTrue($strict->success);
+    $this->assertEquals(new \stdClass(), $passthrough->data);
+  }
+
   public function test_validateType_WithUninitializedTypedProperty_ShouldTreatAsMissing(): void {
     $input = new class {
       public string $f;
