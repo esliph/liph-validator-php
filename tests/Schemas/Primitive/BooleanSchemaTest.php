@@ -934,4 +934,39 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('sim ou não', $result->issues[0]->message);
     $this->assertSame(['talvez', ['expected' => 'bool', 'received' => 'string']], $received);
   }
+
+  /** @return array<string, array{mixed, bool}> */
+  public static function provideBooleanVocabulary(): array {
+    return [
+      'true' => ['true', true], 'upper_true' => ['TRUE', true], 'padded_yes' => [" Yes\t", true],
+      'upper_on' => ['ON', true], 'one' => ['1', true], 'int_one' => [1, true],
+      'mixed_false' => ['False', false], 'off' => ['off', false], 'padded_no' => [' NO ', false],
+      'zero' => ['0', false], 'int_zero' => [0, false],
+    ];
+  }
+
+  #[DataProvider('provideBooleanVocabulary')]
+  public function test_coerce_WithVocabularyValue_ShouldCoerce(mixed $input, bool $expected): void {
+    $result = (new BooleanSchema())->coerce()->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($expected, $result->data);
+  }
+
+  /** @return array<string, array{mixed}> */
+  public static function provideNonVocabularyValues(): array {
+    return [
+      'int_two' => [2], 'float_one' => [1.0], 'string_ten' => ['10'],
+      'string_y' => ['y'], 'accented_true' => ['TRUÉ'], 'empty_array' => [[]],
+    ];
+  }
+
+  #[DataProvider('provideNonVocabularyValues')]
+  public function test_coerce_WithNonVocabularyValue_ShouldFailWithOriginalType(mixed $input): void {
+    $result = (new BooleanSchema())->coerce()->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected bool, received ' . get_debug_type($input), $result->issues[0]->message);
+  }
 }

@@ -8,10 +8,27 @@ use Override;
 
 final class BooleanSchema extends CoercibleSchema {
 
+  private const array VOCABULARY = [
+    'true' => true, '1' => true, 'on' => true, 'yes' => true,
+    'false' => false, '0' => false, 'off' => false, 'no' => false,
+  ];
+
   #[Override]
   protected function coerceInput(mixed $value): mixed {
     if (self::isBlank($value)) {
       return null;
+    }
+
+    if ($value === 1) {
+      return true;
+    }
+
+    if ($value === 0) {
+      return false;
+    }
+
+    if (is_string($value)) {
+      return self::VOCABULARY[strtolower(trim($value))] ?? $value;
     }
 
     return $value;
@@ -23,34 +40,6 @@ final class BooleanSchema extends CoercibleSchema {
       return ParseResult::ok($value);
     }
 
-    $coerced = $this->coerce ? $this->coerceToBoolean($value) : null;
-
-    if ($coerced === null) {
-      return ParseResult::fail($this->typeIssue('bool', $input, $path));
-    }
-
-    return ParseResult::ok($coerced);
-  }
-
-  private function coerceToBoolean(mixed $value): ?bool {
-    if (is_string($value)) {
-      $value = mb_strtolower(trim($value));
-
-      return match ($value) {
-        'true', '1', 'yes', 'on' => true,
-        'false', '0', 'no', 'off', '' => false,
-        default => null,
-      };
-    }
-
-    if (is_int($value)) {
-      return match ($value) {
-        1 => true,
-        0 => false,
-        default => null,
-      };
-    }
-
-    return null;
+    return ParseResult::fail($this->typeIssue('bool', $input, $path));
   }
 }
