@@ -196,6 +196,26 @@ class ValidatorExceptionTest extends TestCase {
     $this->assertArrayHasKey('field', $messages);
   }
 
+  public function test_getMessagesByPath_WithInterleavedPaths_ShouldKeepFirstOccurrenceOrder(): void {
+    $exception = new ValidatorException([
+      new Issue(path: ['a'], message: '1', code: 'custom'),
+      new Issue(path: ['b'], message: '2', code: 'custom'),
+      new Issue(path: ['a'], message: '3', code: 'custom'),
+    ]);
+
+    $this->assertSame(['a' => ['1', '3'], 'b' => ['2']], $exception->getMessagesByPath());
+  }
+
+  public function test_getMessagesByPath_WithNumericPaths_ShouldKeepFirstOccurrenceOrder(): void {
+    $exception = new ValidatorException([
+      new Issue(path: ['1'], message: 'x', code: 'custom'),
+      new Issue(path: ['0'], message: 'y', code: 'custom'),
+      new Issue(path: ['1'], message: 'z', code: 'custom'),
+    ]);
+
+    $this->assertSame([1 => ['x', 'z'], 0 => ['y']], $exception->getMessagesByPath());
+  }
+
   public function test_getFlatMessages_WithoutIssues_ShouldReturnEmptyArray(): void {
     $exception = new ValidatorException([]);
 

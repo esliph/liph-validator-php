@@ -30,14 +30,10 @@ final class ValidatorException extends RuntimeException {
    * @return array<string, string[]>
    */
   public function getMessagesByPath(): array {
-    $grouped = $this->getIssuesByPath();
     $result = [];
 
-    foreach ($grouped as $path => $issues) {
-      $result[$path] = array_map(
-        static fn(Issue $e): string => $e->message,
-        $issues
-      );
+    foreach ($this->issues as $issue) {
+      $result[$issue->pathString()][] = $issue->message;
     }
 
     return $result;
