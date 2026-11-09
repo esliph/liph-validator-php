@@ -86,7 +86,7 @@ class SchemaTest extends TestCase {
     $this->assertSame('{received} %s', $result->issues[0]->message);
   }
 
-  public function test_clone_WithRules_ShouldCloneAllRules(): void {
+  public function test_clone_WithRules_ShouldCreateNewInstance(): void {
     $check1 = fn(mixed $value) => strlen($value) > 3;
     $check2 = fn(mixed $value) => strlen($value) < 20;
 
@@ -99,7 +99,7 @@ class SchemaTest extends TestCase {
     $this->assertNotSame($schema, $cloned);
   }
 
-  public function test_clone_WithTransforms_ShouldResetTransformKeys(): void {
+  public function test_clone_WithTransforms_ShouldCreateNewInstance(): void {
     $schema = new TestSchema();
     $schema = $schema->transform(fn($v) => strtoupper($v));
     $schema = $schema->transform(fn($v) => trim($v));
@@ -119,6 +119,19 @@ class SchemaTest extends TestCase {
     $cloned = clone $schema;
 
     $this->assertNotSame($schema->safeParse(null)->data, $cloned->safeParse(null)->data);
+  }
+
+  public function test_fluentDerivation_WithObjectDefault_ShouldGiveEachParseItsOwnCopy(): void {
+    $default = (object) ['value' => 'test'];
+    $base = (new TestSchema())->_default($default);
+    $derived = $base->optional();
+
+    $first = $base->safeParse(null)->data;
+    $first->value = 'mutated';
+
+    $this->assertSame('test', $derived->safeParse(null)->data->value);
+    $this->assertSame('test', $base->safeParse(null)->data->value);
+    $this->assertNotSame($default, $first);
   }
 
   public function test_parse_WithNullRequired_ShouldThrowValidatorException(): void {

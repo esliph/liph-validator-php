@@ -17,14 +17,6 @@ final class ArraySchema extends CoercibleSchema {
   ) {
   }
 
-  public function __clone(): void {
-    parent::__clone();
-
-    if ($this->elementSchema !== null) {
-      $this->elementSchema = clone $this->elementSchema;
-    }
-  }
-
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     $input = $value;

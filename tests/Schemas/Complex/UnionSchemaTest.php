@@ -21,7 +21,6 @@ use Closure;
 use InvalidArgumentException;
 use Override;
 use ReflectionMethod;
-use ReflectionProperty;
 
 class UnionSchemaTest extends BaseSchemaTestCase {
 
@@ -784,46 +783,41 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('abc', $base->safeParse('abc')->data);
   }
 
-  public function test_clone_ShouldDeepCloneMemberSchemas(): void {
+  public function test_clone_ShouldShareMemberSchemas(): void {
     $string = new StringSchema();
     $integer = new IntegerSchema();
     $base = new UnionSchema([$string, $integer]);
+    $before = $base->safeParse(1.5);
 
     $cloned = clone $base;
 
-    $members = $this->readMembers($cloned);
-    $this->assertCount(2, $members);
-    $this->assertNotSame($string, $members[0]);
-    $this->assertNotSame($integer, $members[1]);
-    $this->assertInstanceOf(StringSchema::class, $members[0]);
-    $this->assertInstanceOf(IntegerSchema::class, $members[1]);
-    $this->assertSame([$string, $integer], $this->readMembers($base));
+    $this->assertSame([$string, $integer], $cloned->getOptions());
+    $this->assertSame([$string, $integer], $base->getOptions());
+    $this->assertEquals($before, $base->safeParse(1.5));
   }
 
-  public function test_clone_FluentMethod_ShouldNotShareMembersWithOriginal(): void {
+  public function test_clone_FluentMethod_ShouldShareMembersWithOriginal(): void {
     $base = new UnionSchema([new StringSchema(), new IntegerSchema()]);
 
     $optional = $base->optional();
 
-    $baseMembers = $this->readMembers($base);
-    $optionalMembers = $this->readMembers($optional);
-    $this->assertNotSame($baseMembers[0], $optionalMembers[0]);
-    $this->assertNotSame($baseMembers[1], $optionalMembers[1]);
+    $this->assertSame($base->getOptions(), $optional->getOptions());
     $this->assertSame('abc', $base->safeParse('abc')->data);
     $this->assertSame('abc', $optional->safeParse('abc')->data);
+    $this->assertFalse($base->safeParse(null)->success);
   }
 
-  public function test_clone_WithNestedComposite_ShouldDeepCloneGrandchildren(): void {
+  public function test_clone_WithNestedComposite_ShouldShareGrandchildren(): void {
     $inner = new StringSchema();
     $object = new ObjectSchema(['name' => $inner]);
     $base = new UnionSchema([$object, new IntegerSchema()]);
+    $before = $base->safeParse((object) ['name' => 'Dan']);
 
     $cloned = clone $base;
 
-    $clonedObject = $this->readMembers($cloned)[0];
-    $shape = (new ReflectionProperty(ObjectSchema::class, 'shape'))->getValue($clonedObject);
-    $this->assertNotSame($object, $clonedObject);
-    $this->assertNotSame($inner, $shape['name']);
+    $this->assertSame($object, $cloned->getOptions()[0]);
+    $this->assertSame($inner, $object->getShape()['name']);
+    $this->assertEquals($before, $base->safeParse((object) ['name' => 'Dan']));
   }
 
   #[DataProvider('provideAllInputTypes')]
@@ -876,13 +870,6 @@ class UnionSchemaTest extends BaseSchemaTestCase {
         $this->assertSame('invalid_union', $result->issues[0]->code);
       }
     }
-  }
-
-  /**
-   * @return Schema[]
-   */
-  private function readMembers(UnionSchema $schema): array {
-    return (new ReflectionProperty(UnionSchema::class, 'schemas'))->getValue($schema);
   }
 
   #[Override]

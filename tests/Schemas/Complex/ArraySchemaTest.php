@@ -899,14 +899,17 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame([2, 3], $result->data);
   }
 
-  public function test_clone_ShouldDeepCloneElementSchema(): void {
-    $schema = new ArraySchema(new IntegerSchema());
-    $property = new \ReflectionProperty(ArraySchema::class, 'elementSchema');
+  public function test_clone_ShouldShareElementSchema(): void {
+    $schema = new ArraySchema((new IntegerSchema())->min(0));
+    $before = $schema->safeParse([1, -1]);
 
     $cloned = clone $schema;
+    $optional = $schema->optional();
 
-    $this->assertNotSame($property->getValue($schema), $property->getValue($cloned));
-    $this->assertEquals($property->getValue($schema), $property->getValue($cloned));
+    $this->assertSame($schema->getItem(), $cloned->getItem());
+    $this->assertSame($schema->getItem(), $optional->getItem());
+    $this->assertEquals($before, $schema->safeParse([1, -1]));
+    $this->assertSame([1, 2], $schema->safeParse([1, 2])->data);
   }
 
   public function test_clone_WithoutElementSchema_ShouldKeepNull(): void {

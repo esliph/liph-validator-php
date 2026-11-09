@@ -25,19 +25,6 @@ final class ObjectSchema extends CoercibleSchema {
     self::assertShape($shape);
   }
 
-  public function __clone(): void {
-    parent::__clone();
-
-    $this->shape = array_map(
-      static fn(Schema $schema): Schema => clone $schema,
-      $this->shape
-    );
-
-    if ($this->catchall !== null) {
-      $this->catchall = clone $this->catchall;
-    }
-  }
-
   #[Override]
   protected static function messageCodes(): array {
     return [...parent::messageCodes(), 'unrecognized_keys'];
@@ -198,6 +185,8 @@ final class ObjectSchema extends CoercibleSchema {
    * @throws LogicException depois de refine() ou transform()
    */
   public function partial(): static {
+    $this->assertDerivable();
+
     $newShape = [];
 
     foreach ($this->shape as $key => $schema) {
@@ -208,15 +197,23 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
+   * Raso: só os campos opcionais são clonados; os demais entram no shape novo
+   * como a mesma instância.
+   *
    * @throws LogicException depois de refine() ou transform()
    */
   public function required(): static {
+    $this->assertDerivable();
+
     $newShape = [];
 
     foreach ($this->shape as $key => $schema) {
-      $newSchema = clone $schema;
-      $newSchema->isOptional = false;
-      $newShape[$key] = $newSchema;
+      if ($schema->isOptional) {
+        $schema = clone $schema;
+        $schema->isOptional = false;
+      }
+
+      $newShape[$key] = $schema;
     }
 
     return $this->withShape($newShape);
@@ -263,14 +260,21 @@ final class ObjectSchema extends CoercibleSchema {
    * @throws LogicException depois de refine() ou transform()
    */
   private function withShape(array $shape): static {
-    if ($this->hasRefineOrTransform()) {
-      throw new LogicException('cannot derive an object schema after refine() or transform()');
-    }
+    $this->assertDerivable();
 
     $clone = clone $this;
     $clone->shape = $shape;
 
     return $clone;
+  }
+
+  /**
+   * @throws LogicException depois de refine() ou transform()
+   */
+  private function assertDerivable(): void {
+    if ($this->hasRefineOrTransform()) {
+      throw new LogicException('cannot derive an object schema after refine() or transform()');
+    }
   }
 
   private function hasRefineOrTransform(): bool {

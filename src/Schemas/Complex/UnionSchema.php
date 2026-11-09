@@ -32,15 +32,6 @@ final class UnionSchema extends Schema {
     return $this->schemas;
   }
 
-  public function __clone(): void {
-    parent::__clone();
-
-    $this->schemas = array_map(
-      static fn(Schema $schema): Schema => clone $schema,
-      $this->schemas
-    );
-  }
-
   #[Override]
   protected static function messageCodes(): array {
     return ['required', 'invalid_union'];

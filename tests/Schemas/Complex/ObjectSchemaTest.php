@@ -1203,8 +1203,9 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['age'], $result->issues[0]->path);
   }
 
-  public function test_clone_ShouldCloneChildrenDeeply(): void {
+  public function test_clone_ShouldShareChildren(): void {
     $base = $this->createUserSchema()->catchall(new IntegerSchema());
+    $catchall = new \ReflectionProperty(ObjectSchema::class, 'catchall');
     $cloned = clone $base;
 
     $modified = $cloned->partial()->strict();
@@ -1213,6 +1214,56 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($base->isValid((object) ['name' => 'Dan', 'age' => 30, 'extra' => 1]));
     $this->assertFalse($cloned->isValid(new \stdClass()));
     $this->assertTrue($modified->isValid(new \stdClass()));
+    $this->assertSame($base->getShape(), (clone $base)->strict()->getShape());
+    $this->assertSame($catchall->getValue($base), $catchall->getValue($base->optional()));
+  }
+
+  public function test_required_WithAlreadyRequiredField_ShouldKeepSameInstance(): void {
+    $name = new StringSchema();
+    $nick = (new StringSchema())->optional();
+    $schema = new ObjectSchema(['name' => $name, 'nick' => $nick]);
+
+    $shape = $schema->required()->getShape();
+
+    $this->assertSame($name, $shape['name']);
+    $this->assertNotSame($nick, $shape['nick']);
+    $this->assertFalse($schema->required()->isValid((object) ['name' => 'a']));
+    $this->assertTrue($schema->isValid((object) ['name' => 'a']));
+  }
+
+  public function test_required_WithNestedPartialObject_ShouldBeShallow(): void {
+    $inner = (new ObjectSchema(['city' => new StringSchema()]))->partial();
+
+    $schema = (new ObjectSchema(['address' => $inner]))->required();
+
+    $this->assertSame($inner, $schema->getShape()['address']);
+    $this->assertTrue($schema->isValid((object) ['address' => new \stdClass()]));
+  }
+
+  public function test_partial_AfterRefine_ShouldThrowAndKeepShape(): void {
+    $name = new StringSchema();
+    $schema = (new ObjectSchema(['name' => $name]))->refine(static fn(mixed $v): bool => true);
+
+    try {
+      $schema->partial();
+      $this->fail('Expected LogicException');
+    } catch (LogicException) {
+    }
+
+    $this->assertSame($name, $schema->getShape()['name']);
+  }
+
+  public function test_required_AfterTransform_ShouldThrowAndKeepShape(): void {
+    $name = new StringSchema();
+    $schema = (new ObjectSchema(['name' => $name]))->transform(static fn(mixed $v): mixed => $v);
+
+    try {
+      $schema->required();
+      $this->fail('Expected LogicException');
+    } catch (LogicException) {
+    }
+
+    $this->assertSame($name, $schema->getShape()['name']);
   }
 
   public function test_parse_WithNestedInvalidField_ShouldThrowWithIssuePath(): void {

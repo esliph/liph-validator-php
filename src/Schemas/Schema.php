@@ -22,19 +22,6 @@ abstract class Schema {
   /** @var array<string, string|Closure> */
   protected array $messages = [];
 
-  public function __clone(): void {
-    $this->rules = array_map(
-      static fn(Rule $rule): Rule => clone $rule,
-      $this->rules
-    );
-
-    $this->transforms = array_values($this->transforms);
-
-    if ($this->hasDefault && self::isCloneableDefault($this->default)) {
-      $this->default = clone $this->default;
-    }
-  }
-
   /**
    * @param string[] $path
    */
