@@ -97,11 +97,12 @@ abstract class BaseCoercibleSchemaTestCase extends BaseSchemaTestCase {
 
   #[DataProvider('provideBlankStrings')]
   public function test_parse_WithBlankStringWithoutCoerce_ShouldFailInvalidType(string $blank): void {
-    if (!$this->blankCoercesToNull()) {
-      $this->markTestSkipped('Blank string is a valid value for this schema.');
-    }
-
     $result = $this->createSchemaCoercible()->safeParse($blank);
+
+    if (!$this->blankCoercesToNull()) {
+      $this->assertBlankKept($result, $blank);
+      return;
+    }
 
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
