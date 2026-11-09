@@ -36,7 +36,7 @@ Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subj
 
 **Schema hierarchy:**
 - `Schema` (abstract) — parse pipeline, rules, transforms, `optional()`, `_default()`, `refine()`.
-- `CoercibleSchema` — exposes `coerce()` (the `$coerce` flag lives in `Schema`); subclasses override `coerceInput()`.
+- `CoercibleSchema` — exposes `coerce()` (the `$coerce` flag lives in `Schema`); subclasses override `coerceInput()`. It also brings `isBlank()` and `decodeJson($value, $opening)` (trims, decodes only when the trimmed string starts with `[` or `{`, returns the original string on invalid JSON); JSON comes out with `stdClass` objects in Array and Object, and nested objects are validated by children without `coerce()`.
 - `Primitive/`: `NumberSchema` (base of `IntegerSchema` and `FloatSchema`), `StringSchema`, `BooleanSchema`, `DateSchema`.
 - `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema` (`acceptsNull()` is true: `null` is handed to the members).
 - `Schemas/` (top level): `MixedSchema` accepts any value. `NullSchema` accepts only `null` (`acceptsNull()` is true). `LiteralSchema` accepts only the given value (`===` comparison; accepts `null` when the literal is `null`). `EnumSchema` accepts a list of scalars (strict `in_array`) or a `class-string<BackedEnum>` (checks the backing type before `tryFrom` and returns the case).

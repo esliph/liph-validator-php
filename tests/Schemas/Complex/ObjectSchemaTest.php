@@ -193,13 +193,59 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertEquals((object) ['name' => 'Dan', 'age' => 30], $result->data);
   }
 
-  public function test_coerce_WithJsonString_ShouldFailWithInvalidType(): void {
+  public function test_coerce_WithJsonObjectString_ShouldDecodeToStdClass(): void {
     $schema = $this->createUserSchema()->coerce();
 
     $result = $schema->safeParse('{"name":"Dan","age":30}');
 
+    $this->assertTrue($result->success);
+    $this->assertInstanceOf(\stdClass::class, $result->data);
+    $this->assertSame('Dan', $result->data->name);
+    $this->assertSame(30, $result->data->age);
+  }
+
+  public function test_coerce_WithNestedJsonObject_ShouldValidateNestedStdClassWithoutChildCoerce(): void {
+    $schema = (new ObjectSchema(['user' => new ObjectSchema(['id' => new IntegerSchema()])]))->coerce();
+
+    $result = $schema->safeParse(' {"user":{"id":1}} ');
+
+    $this->assertTrue($result->success);
+    $this->assertInstanceOf(\stdClass::class, $result->data->user);
+    $this->assertSame(1, $result->data->user->id);
+  }
+
+  public function test_coerce_WithNestedJsonObjectFailing_ShouldReportNestedPath(): void {
+    $schema = (new ObjectSchema(['user' => new ObjectSchema(['id' => new IntegerSchema()])]))->coerce();
+
+    $result = $schema->safeParse('{"user":{"id":"x"}}');
+
     $this->assertFalse($result->success);
     $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame(['user', 'id'], $result->issues[0]->path);
+  }
+
+  public function test_coerce_WithJsonListString_ShouldFailExpectedObject(): void {
+    $result = $this->createUserSchema()->coerce()->safeParse('[{"a":1}]');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected object, received string', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithInvalidJson_ShouldFailExpectedObject(): void {
+    $result = $this->createUserSchema()->coerce()->safeParse('{"a":');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected object, received string', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithAssociativeArrayDefault_ShouldFailExpectedObjectReceivedArray(): void {
+    $schema = $this->createUserSchema()->coerce()->_default(['name' => 'Dan', 'age' => 30]);
+
+    $result = $schema->safeParse(null);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected object, received array', $result->issues[0]->message);
   }
 
   public function test_coerce_WithNestedAssociativeArrayAndNonCoercibleChild_ShouldFailAtNestedPath(): void {

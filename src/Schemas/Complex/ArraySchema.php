@@ -23,22 +23,15 @@ final class ArraySchema extends CoercibleSchema {
       return null;
     }
 
+    if (is_string($value)) {
+      return self::decodeJson($value, '[');
+    }
+
     return $value;
   }
 
   #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
-    if ($this->coerce && is_string($value)) {
-      try {
-        $decoded = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
-
-        if (is_array($decoded)) {
-          $value = $decoded;
-        }
-      } catch (\Exception) {
-      }
-    }
-
     if (!is_array($value)) {
       return ParseResult::fail($this->typeIssue('array', $input, $path));
     }

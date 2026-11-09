@@ -36,22 +36,26 @@ final class ObjectSchema extends CoercibleSchema {
       return null;
     }
 
+    if (is_string($value)) {
+      return self::decodeJson($value, '{');
+    }
+
+    if (is_array($value) && $this->isAssociativeArray($value)) {
+      return (object) $value;
+    }
+
     return $value;
   }
 
   #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
-    if ($this->coerce && is_array($value)) {
-      if (!$this->isAssociativeArray($value)) {
-        return ParseResult::fail(
-          $this->issue('invalid_type', 'Expected object or associative array, received list', $input, $path, [
-            'expected' => 'object',
-            'received' => 'list',
-          ])
-        );
-      }
-
-      return ParseResult::ok((object) $value);
+    if ($this->coerce && is_array($value) && !$this->isAssociativeArray($value)) {
+      return ParseResult::fail(
+        $this->issue('invalid_type', 'Expected object or associative array, received list', $input, $path, [
+          'expected' => 'object',
+          'received' => 'list',
+        ])
+      );
     }
 
     if (!is_object($value)) {

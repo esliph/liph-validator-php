@@ -226,14 +226,44 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame([[1, 2], [3]], $result->data);
   }
 
-  public function test_coerce_WithJsonObjectString_ShouldFailWithInvalidType(): void {
+  public function test_coerce_WithJsonObjectString_ShouldFailExpectedArrayWithStringInClosure(): void {
+    $received = null;
     $schema = (new ArraySchema())->coerce();
+    $custom = $schema->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'x';
+      },
+    ]);
 
-    $result = $schema->safeParse('{"key": "value"}');
+    $default = $schema->safeParse('{"a":1}');
+    $custom->safeParse('{"a":1}');
+
+    $this->assertSame('invalid_type', $default->issues[0]->code);
+    $this->assertSame('Expected array, received string', $default->issues[0]->message);
+    $this->assertSame(['{"a":1}', ['expected' => 'array', 'received' => 'string']], $received);
+  }
+
+  public function test_coerce_WithJsonListOfObjects_ShouldKeepItemsAsStdClass(): void {
+    $result = (new ArraySchema(new ObjectSchema(['a' => new IntegerSchema()])))->coerce()->safeParse('[{"a":1}]');
+
+    $this->assertTrue($result->success);
+    $this->assertInstanceOf(\stdClass::class, $result->data[0]);
+    $this->assertSame(1, $result->data[0]->a);
+  }
+
+  public function test_coerce_WithPaddedJsonList_ShouldDecode(): void {
+    $result = (new ArraySchema())->coerce()->safeParse('  [1]  ');
+
+    $this->assertTrue($result->success);
+    $this->assertSame([1], $result->data);
+  }
+
+  public function test_coerce_WithTruncatedJsonList_ShouldFailExpectedArray(): void {
+    $result = (new ArraySchema())->coerce()->safeParse('[1,');
 
     $this->assertFalse($result->success);
-    $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('Expected list, received associative array', $result->issues[0]->message);
+    $this->assertSame('Expected array, received string', $result->issues[0]->message);
   }
 
   public function test_coerce_WithInvalidJson_ShouldFailWithInvalidType(): void {
@@ -1015,23 +1045,6 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $result = (new ArraySchema())->messages(['invalid_type' => 'Lista'])->safeParse(['a' => 1]);
 
     $this->assertSame('Lista', $result->issues[0]->message);
-  }
-
-  public function test_messages_WithCoercedAssociativeJsonClosure_ShouldReceiveOriginalStringAsReceived(): void {
-    $received = null;
-    $schema = (new ArraySchema())->coerce();
-    $custom = $schema->messages([
-      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
-        $received = [$value, $params];
-        return 'custom';
-      },
-    ]);
-
-    $default = $schema->safeParse('{"a":1}');
-    $custom->safeParse('{"a":1}');
-
-    $this->assertSame('Expected list, received associative array', $default->issues[0]->message);
-    $this->assertSame(['{"a":1}', ['expected' => 'list', 'received' => 'string']], $received);
   }
 
   /**
