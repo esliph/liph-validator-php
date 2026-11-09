@@ -12,6 +12,7 @@ use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\Primitive\StringSchema;
 
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
+use Esliph\Validator\V;
 
 use Closure;
 use InvalidArgumentException;
@@ -471,7 +472,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('guest', $result->data->role);
   }
 
-  public function test_validateType_WithMissingOptionalField_ShouldSucceedWithNullProperty(): void {
+  public function test_validateType_WithMissingOptionalField_ShouldOmitProperty(): void {
     $schema = new ObjectSchema([
       'name' => new StringSchema(),
       'nickname' => (new StringSchema())->optional(),
@@ -481,8 +482,138 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result->success);
     $this->assertSame('Dan', $result->data->name);
-    $this->assertTrue(property_exists($result->data, 'nickname'));
-    $this->assertNull($result->data->nickname);
+    $this->assertObjectNotHasProperty('nickname', $result->data);
+  }
+
+  public function test_validateType_WithOptionalFieldExplicitlyNull_ShouldKeepNull(): void {
+    $schema = V::object(['f' => V::string()->optional()]);
+
+    $result = $schema->safeParse((object) ['f' => null]);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectHasProperty('f', $result->data);
+    $this->assertNull($result->data->f);
+  }
+
+  public function test_validateType_WithMissingNullField_ShouldOmitProperty(): void {
+    $result = V::object(['f' => V::null()])->safeParse(new \stdClass());
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('f', $result->data);
+  }
+
+  public function test_validateType_WithMissingNullableUnionField_ShouldOmitProperty(): void {
+    $result = V::object(['f' => V::union(V::string(), V::null())])->safeParse(new \stdClass());
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('f', $result->data);
+  }
+
+  public function test_validateType_WithMissingUnionFieldWithDefaultMember_ShouldUseDefault(): void {
+    $result = V::object(['f' => V::union(V::int()->_default(5), V::string())])->safeParse(new \stdClass());
+
+    $this->assertTrue($result->success);
+    $this->assertSame(5, $result->data->f);
+  }
+
+  public function test_validateType_WithFieldOnlyViaMagicGet_ShouldTreatAsMissing(): void {
+    $input = new class {
+      public function __get(string $name): mixed {
+        return 'x';
+      }
+
+      public function __isset(string $name): bool {
+        return true;
+      }
+    };
+
+    $result = V::object(['f' => V::string()])->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame(['f'], $result->issues[0]->path);
+  }
+
+  public function test_validateType_WithDeclaredPublicProperty_ShouldReadIt(): void {
+    $input = new class {
+      public string $f = 'x';
+    };
+
+    $result = V::object(['f' => V::string()])->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('x', $result->data->f);
+  }
+
+  public function test_validateType_WithPrivateProperty_ShouldNotReadIt(): void {
+    $input = new class {
+      private string $f = 'x';
+
+      public function get(): string {
+        return $this->f;
+      }
+    };
+
+    $result = V::object(['f' => V::string()->optional()])->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('f', $result->data);
+    $this->assertSame('x', $input->get());
+  }
+
+  public function test_validateType_WithIntegerKey_ShouldReadNormalizedKey(): void {
+    $result = (new ObjectSchema([0 => new StringSchema()]))->safeParse((object) ['0' => 'a']);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('a', $result->data->{'0'});
+  }
+
+  public function test_coerce_WithJsonIntegerKey_ShouldReadField(): void {
+    $result = (new ObjectSchema([0 => new StringSchema()]))->coerce()->safeParse('{"0":"a"}');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('a', $result->data->{'0'});
+  }
+
+  public function test_strict_WithJsonIntegerUnknownKey_ShouldReportIntPath(): void {
+    $result = (new ObjectSchema([0 => new StringSchema()]))->strict()->coerce()->safeParse('{"0":"a","1":"b"}');
+
+    $this->assertFalse($result->success);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('unrecognized_keys', $result->issues[0]->code);
+    $this->assertSame([1], $result->issues[0]->path);
+  }
+
+  public function test_validateType_WithArrayObjectAsProps_ShouldTreatFieldAsMissing(): void {
+    $input = new \ArrayObject(['f' => 'x'], \ArrayObject::ARRAY_AS_PROPS);
+
+    $result = V::object(['f' => V::string()])->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame(['f'], $result->issues[0]->path);
+  }
+
+  public function test_validateType_WithUninitializedTypedProperty_ShouldTreatAsMissing(): void {
+    $input = new class {
+      public string $f;
+    };
+
+    $required = V::object(['f' => V::string()])->safeParse($input);
+    $optional = V::object(['f' => V::string()->optional()])->safeParse($input);
+
+    $this->assertFalse($required->success);
+    $this->assertSame('required', $required->issues[0]->code);
+    $this->assertSame(['f'], $required->issues[0]->path);
+    $this->assertTrue($optional->success);
+    $this->assertObjectNotHasProperty('f', $optional->data);
+  }
+
+  public function test_refine_WithMissingOptionalReadWithCoalesce_ShouldGetFallback(): void {
+    $schema = V::object(['nick' => V::string()->optional()])
+      ->refine(fn(object $o): bool => ($o->nick ?? 'anon') === 'anon');
+
+    $this->assertTrue($schema->safeParse(new \stdClass())->success);
   }
 
   public function test_validateType_WithEmptyShape_ShouldAcceptAnyObject(): void {
@@ -1083,12 +1214,14 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertTrue($other->isValid((object) ['email' => 'a@b.com']));
   }
 
-  public function test_partial_WithEmptyObject_ShouldSucceed(): void {
+  public function test_partial_WithEmptyObject_ShouldReturnEmptyObject(): void {
     $schema = $this->createUserSchema()->partial();
 
     $result = $schema->safeParse(new \stdClass());
 
     $this->assertTrue($result->success);
+    $this->assertEquals(new \stdClass(), $result->data);
+    $this->assertSame([], $schema->asArray()->parse(new \stdClass()));
   }
 
   public function test_partial_WithPresentInvalidField_ShouldStillValidateIt(): void {

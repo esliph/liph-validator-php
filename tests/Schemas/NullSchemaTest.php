@@ -136,14 +136,13 @@ class NullSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('invalid_type', $invalid->issues[0]->code);
   }
 
-  public function test_validateType_WithNullSchemaFieldMissingInObject_ShouldSetNull(): void {
+  public function test_validateType_WithNullSchemaFieldMissingInObject_ShouldOmitProperty(): void {
     $schema = V::object(['deletedAt' => V::null()]);
 
     $result = $schema->safeParse(new stdClass());
 
     $this->assertTrue($result->success);
-    $this->assertTrue(property_exists($result->data, 'deletedAt'));
-    $this->assertNull($result->data->deletedAt);
+    $this->assertObjectNotHasProperty('deletedAt', $result->data);
   }
 
   public function test_null_FromFactory_ShouldReturnNullSchema(): void {

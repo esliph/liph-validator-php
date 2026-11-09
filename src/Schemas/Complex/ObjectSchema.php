@@ -9,6 +9,14 @@ use InvalidArgumentException;
 use LogicException;
 use Override;
 
+/**
+ * `refine`/`transform` do objeto recebem o `stdClass` de saída: com defaults,
+ * coerção e transforms dos campos aplicados, sem as chaves descartadas pelo
+ * `strip` e sem os opcionais ausentes, que devem ser lidos com `??`.
+ *
+ * Os campos são lidos por `get_object_vars`: só propriedades públicas
+ * inicializadas contam, e o que existe apenas via `__get` não é lido.
+ */
 final class ObjectSchema extends CoercibleSchema {
 
   /** @var 'strip'|'strict'|'passthrough'|'catchall' */
@@ -68,24 +76,23 @@ final class ObjectSchema extends CoercibleSchema {
 
   #[Override]
   protected function validateType(mixed $value, array $path = []): ParseResult {
+    $props = get_object_vars($value);
     $parsedValue = new \stdClass();
     $issues = [];
 
     foreach ($this->shape as $key => $schema) {
-      $fieldPath = array_merge($path, [$key]);
-      $fieldValue = $value->$key ?? null;
-
-      $result = $schema->_parse($fieldValue, $fieldPath);
+      $exists = array_key_exists($key, $props);
+      $result = $schema->_parse($exists ? $props[$key] : null, array_merge($path, [$key]));
 
       if (!$result->success) {
         $issues = array_merge($issues, $result->issues);
-      } else {
+      } elseif ($exists || $result->data !== null) {
         $parsedValue->$key = $result->data;
       }
     }
 
     if ($this->unknownKeys !== 'strip') {
-      foreach ($value as $key => $val) {
+      foreach ($props as $key => $val) {
         if (isset($this->shape[$key])) {
           continue;
         }

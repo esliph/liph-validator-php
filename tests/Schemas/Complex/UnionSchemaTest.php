@@ -473,7 +473,7 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $result = $schema->safeParse(new \stdClass());
 
     $this->assertTrue($result->success);
-    $this->assertNull($result->data->id);
+    $this->assertObjectNotHasProperty('id', $result->data);
   }
 
   public function test_validateType_WithRequiredUnionInsideObjectAndMissingField_ShouldFailRequiredAtFieldPath(): void {
