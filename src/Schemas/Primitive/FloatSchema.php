@@ -9,9 +9,7 @@ use Esliph\Validator\Results\ParseResult;
 class FloatSchema extends NumberSchema {
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    $input = $value;
-
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       $value = (float) $value;
     }

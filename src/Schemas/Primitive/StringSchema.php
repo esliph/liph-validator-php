@@ -12,7 +12,7 @@ use Override;
 final class StringSchema extends CoercibleSchema {
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_string($value)) {
       return ParseResult::ok($value);
     }
@@ -24,7 +24,7 @@ final class StringSchema extends CoercibleSchema {
       return ParseResult::ok((string) $value);
     }
 
-    return ParseResult::fail($this->typeIssue('string', $value, $path));
+    return ParseResult::fail($this->typeIssue('string', $input, $path));
   }
 
   /**

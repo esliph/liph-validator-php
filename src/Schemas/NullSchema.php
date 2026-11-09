@@ -22,7 +22,7 @@ final class NullSchema extends Schema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($value === null) {
       return ParseResult::ok(null);
     }

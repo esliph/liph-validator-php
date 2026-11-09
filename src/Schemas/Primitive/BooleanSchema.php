@@ -9,7 +9,7 @@ use Override;
 final class BooleanSchema extends CoercibleSchema {
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_bool($value)) {
       return ParseResult::ok($value);
     }
@@ -17,7 +17,7 @@ final class BooleanSchema extends CoercibleSchema {
     $coerced = $this->coerce ? $this->coerceToBoolean($value) : null;
 
     if ($coerced === null) {
-      return ParseResult::fail($this->typeIssue('bool', $value, $path));
+      return ParseResult::fail($this->typeIssue('bool', $input, $path));
     }
 
     return ParseResult::ok($coerced);

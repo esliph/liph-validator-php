@@ -36,14 +36,15 @@ Benchmarks via PHPBench (`make bench`, `ARGS` forwarded to `phpbench run`): subj
 
 **Schema hierarchy:**
 - `Schema` (abstract) — parse pipeline, rules, transforms, `optional()`, `_default()`, `refine()`.
-- `CoercibleSchema` — adds the `coerce()` flag; each subclass decides in `parseType` what to coerce.
+- `CoercibleSchema` — exposes `coerce()` (the `$coerce` flag lives in `Schema`); subclasses override `coerceInput()`.
 - `Primitive/`: `NumberSchema` (base of `IntegerSchema` and `FloatSchema`), `StringSchema`, `BooleanSchema`, `DateSchema`.
 - `Complex/`: `ObjectSchema`, `ArraySchema`, `UnionSchema` (`acceptsNull()` is true: `null` is handed to the members).
 - `Schemas/` (top level): `MixedSchema` accepts any value. `NullSchema` accepts only `null` (`acceptsNull()` is true). `LiteralSchema` accepts only the given value (`===` comparison; accepts `null` when the literal is `null`). `EnumSchema` accepts a list of scalars (strict `in_array`) or a `class-string<BackedEnum>` (checks the backing type before `tryFrom` and returns the case).
 
 **`Schema::_parse($value, $path)` pipeline** (order matters):
-1. `null` → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`; otherwise a `required` issue if `acceptsNull()` (default `false`) is false; otherwise continues to `parseType()` with `null`.
-2. `parseType()` (abstract) — type check + coercion; a failure short-circuits and is returned as it came.
+0. With `coerce()` and a non-null value, `coerceInput()` converts it; `null` means blank field. `$input` keeps the original, which goes into every schema issue; the default is not coerced and becomes the `$input`.
+1. `null` (also after step 0) → applies the default (value or `Closure`) if there is one; otherwise returns ok if `optional`; otherwise a `required` issue if `acceptsNull()` (default `false`) is false; otherwise continues to `parseType()` with `null`.
+2. `parseType($value, $path, $input)` (abstract) — only checks the type; a failure short-circuits and is returned as it came.
 3. `validateRules()` — runs every accumulated `Rule`, collecting *all* issues (does not stop at the first one). A failure comes out as `ParseResult::dirty`.
 4. `validateType()` — hook for validating children (e.g. `ObjectSchema` validates each shape field, strict/catchall/passthrough mode; `ArraySchema` validates elements). No-op by default. A failure comes out as `ParseResult::dirty` (kept as is if already dirty).
 5. `applyTransforms()` — transforms only run if everything passed.

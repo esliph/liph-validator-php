@@ -18,9 +18,7 @@ final class ArraySchema extends CoercibleSchema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    $input = $value;
-
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value)) {
       try {
         $decoded = json_decode($value, true, flags: JSON_THROW_ON_ERROR);

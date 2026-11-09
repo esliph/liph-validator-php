@@ -12,9 +12,7 @@ class IntegerSchema extends NumberSchema {
   private const float INT_RANGE_END = 9.2233720368547758E18;
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    $input = $value;
-
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       // String inteira que cabe vira int exato, sem passar por float.
       $number = $value + 0;

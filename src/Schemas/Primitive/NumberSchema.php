@@ -20,9 +20,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    $input = $value;
-
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->coerce && is_string($value) && is_numeric($value)) {
       // Aritmética de string numérica: inteiro que cabe vira int, o resto vira float.
       $value = $value + 0;

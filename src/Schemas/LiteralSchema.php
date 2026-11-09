@@ -39,7 +39,7 @@ final class LiteralSchema extends Schema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($value === $this->value) {
       return ParseResult::ok($value);
     }

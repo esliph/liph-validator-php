@@ -19,6 +19,7 @@ abstract class Schema {
   protected bool $isOptional = false;
   protected mixed $default = null;
   protected bool $hasDefault = false;
+  protected bool $coerce = false;
   /** @var array<string, string|Closure> */
   protected array $messages = [];
 
@@ -26,17 +27,23 @@ abstract class Schema {
    * @param string[] $path
    */
   protected function _parse(mixed $value, array $path = []): ParseResult {
-    if (is_null($value)) {
+    $input = $value;
+
+    if ($this->coerce && $value !== null) {
+      $value = $this->coerceInput($value);
+    }
+
+    if ($value === null) {
       if ($this->hasDefault) {
-        $value = $this->resolveDefault();
+        $value = $input = $this->resolveDefault();
       } elseif ($this->isOptional) {
         return ParseResult::ok();
       } elseif (!$this->acceptsNull()) {
-        return ParseResult::fail($this->issue('required', 'Value is required', $value, $path));
+        return ParseResult::fail($this->issue('required', 'Value is required', $input, $path));
       }
     }
 
-    $typeResult = $this->parseType($value, $path);
+    $typeResult = $this->parseType($value, $path, $input);
 
     if (!$typeResult->success) {
       return $typeResult;
@@ -72,9 +79,20 @@ abstract class Schema {
   }
 
   /**
+   * Passo 0 do `_parse`, só com `coerce()` e valor não nulo. Devolve o valor
+   * convertido, `null` (campo em branco) ou o próprio original quando não
+   * converte. Nunca lança nem cria issue.
+   */
+  protected function coerceInput(mixed $value): mixed {
+    return $value;
+  }
+
+  /**
+   * `$input` é o valor original, antes da coerção; é ele que vai para as issues.
+   *
    * @param string[] $path
    */
-  abstract protected function parseType(mixed $value, array $path = []): ParseResult;
+  abstract protected function parseType(mixed $value, array $path, mixed $input): ParseResult;
 
   /**
    * @param string[] $path

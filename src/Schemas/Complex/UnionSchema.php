@@ -52,7 +52,7 @@ final class UnionSchema extends Schema {
    * regra ou num filho; senão uma única `invalid_union`.
    */
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     $firstDirty = null;
 
     foreach ($this->schemas as $schema) {

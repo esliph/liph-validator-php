@@ -701,13 +701,13 @@ class UnionSchemaTest extends BaseSchemaTestCase {
       }
 
       #[Override]
-      protected function parseType(mixed $value, array $path = []): ParseResult {
+      protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
         return $this->result;
       }
     };
     $union = new UnionSchema([$member, new StringSchema()]);
 
-    $result = (new ReflectionMethod(UnionSchema::class, 'parseType'))->invoke($union, 'x', []);
+    $result = (new ReflectionMethod(UnionSchema::class, 'parseType'))->invoke($union, 'x', [], 'x');
 
     $this->assertSame($expected, $result);
   }

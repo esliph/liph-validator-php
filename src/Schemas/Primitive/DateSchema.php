@@ -23,7 +23,7 @@ final class DateSchema extends CoercibleSchema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($value instanceof DateTimeInterface) {
       return ParseResult::ok(DateTimeImmutable::createFromInterface($value));
     }
@@ -33,12 +33,12 @@ final class DateSchema extends CoercibleSchema {
     }
 
     if (!$this->coerce || !is_string($value)) {
-      return ParseResult::fail($this->typeIssue('DateTimeImmutable', $value, $path));
+      return ParseResult::fail($this->typeIssue('DateTimeImmutable', $input, $path));
     }
 
     // Em branco, o construtor devolveria o instante atual.
     if (trim($value) === '') {
-      return $this->invalidDate($value, $path);
+      return $this->invalidDate($input, $path);
     }
 
     try {
@@ -46,12 +46,12 @@ final class DateSchema extends CoercibleSchema {
         ? DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone)
         : new DateTimeImmutable($value, $this->timezone);
     } catch (Exception) {
-      return $this->invalidDate($value, $path);
+      return $this->invalidDate($input, $path);
     }
 
     // Data impossível (ex.: 2024-02-30) só gera warning e seria normalizada para o mês seguinte.
     if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
-      return $this->invalidDate($value, $path);
+      return $this->invalidDate($input, $path);
     }
 
     return ParseResult::ok($date);

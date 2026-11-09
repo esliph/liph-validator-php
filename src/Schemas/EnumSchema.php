@@ -88,7 +88,7 @@ final class EnumSchema extends Schema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->enumClass === null) {
       $found = match (true) {
         is_int($value) => isset($this->intSet[$value]),

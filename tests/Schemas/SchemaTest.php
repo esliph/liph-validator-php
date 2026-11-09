@@ -7,6 +7,7 @@ use Closure;
 use Esliph\Validator\Errors\Issue;
 use PHPUnit\Framework\TestCase;
 
+use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Errors\ValidatorException;
@@ -28,7 +29,7 @@ class TestSchema extends Schema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->checkType === null) {
       return ParseResult::ok($value);
     }
@@ -910,7 +911,7 @@ class SchemaTest extends TestCase {
       }
 
       #[Override]
-      protected function parseType(mixed $value, array $path = []): ParseResult {
+      protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
         return ParseResult::ok($value ?? 'reached parseType');
       }
     };
@@ -932,5 +933,96 @@ class SchemaTest extends TestCase {
     $this->expectExceptionMessage('boom');
 
     $schema->isValid('a');
+  }
+
+  /**
+   * @param Closure(mixed): mixed $coerce
+   */
+  private function coercionProbe(Closure $coerce): CoercibleSchema {
+    return new class($coerce) extends CoercibleSchema {
+
+      public function __construct(private Closure $coerceWith) {
+      }
+
+      #[Override]
+      protected function coerceInput(mixed $value): mixed {
+        return ($this->coerceWith)($value);
+      }
+
+      #[Override]
+      protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
+        return ParseResult::ok(['value' => $value, 'input' => $input]);
+      }
+    };
+  }
+
+  public function test_coerceInput_WithNull_ShouldNotBeCalled(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return $v; })->coerce();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_coerceInput_WithNullAndDefault_ShouldNotCoerceDefault(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return $v; })
+      ->coerce()->_default('fallback');
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame(['value' => 'fallback', 'input' => 'fallback'], $result->data);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_coerceInput_WithoutCoerce_ShouldNotBeCalled(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return 'cooked'; });
+
+    $result = $schema->safeParse('raw');
+
+    $this->assertSame(['value' => 'raw', 'input' => 'raw'], $result->data);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_parseType_WithCoercedValue_ShouldReceiveOriginalAsInput(): void {
+    $schema = $this->coercionProbe(fn(mixed $v): mixed => 'cooked')->coerce();
+
+    $result = $schema->safeParse('raw');
+
+    $this->assertSame(['value' => 'cooked', 'input' => 'raw'], $result->data);
+  }
+
+  public function test_coerceInput_ReturningNull_ShouldFailRequiredWithOriginalInClosure(): void {
+    $received = 'not called';
+    $schema = $this->coercionProbe(fn(mixed $v): mixed => null)->coerce()->messages([
+      'required' => function (mixed $value) use (&$received): string { $received = $value; return 'vazio'; },
+    ]);
+
+    $result = $schema->safeParse('  ');
+
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame('vazio', $result->issues[0]->message);
+    $this->assertSame('  ', $received);
+  }
+
+  public function test_coerceInput_ReturningNullWithOptional_ShouldSucceedWithNull(): void {
+    $result = $this->coercionProbe(fn(mixed $v): mixed => null)->coerce()->optional()->safeParse('x');
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_coerceInput_ReturningNullWithDefault_ShouldUseUncoercedDefaultAsInput(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return null; })
+      ->coerce()->_default('fallback');
+
+    $result = $schema->safeParse('x');
+
+    $this->assertSame(['value' => 'fallback', 'input' => 'fallback'], $result->data);
+    $this->assertSame(['x'], $calls);
   }
 }
