@@ -8,13 +8,24 @@ use InvalidArgumentException;
 use Override;
 
 /**
- * Aceita um valor de uma lista de escalares, comparado com `in_array` estrito,
- * ou um valor de backing de um `BackedEnum`, devolvendo o case.
+ * Aceita um valor de uma lista de escalares ou um valor de backing de um
+ * `BackedEnum`, devolvendo o case.
+ *
+ * A lista é buscada por tipo, mantendo a semântica de `===`: int num mapa de
+ * ints, string num mapa de strings (a string numérica canônica vira chave int
+ * no PHP, e a busca com `isset` aplica a mesma conversão), e bool/float num
+ * `in_array` estrito sobre os poucos valores restantes.
  */
 final class EnumSchema extends Schema {
 
   /** @var list<string|int|float|bool> */
   private readonly array $values;
+  /** @var array<int, true> */
+  private readonly array $intSet;
+  /** @var array<string|int, true> */
+  private readonly array $stringSet;
+  /** @var list<bool|float> */
+  private readonly array $otherValues;
   /** @var class-string<BackedEnum>|null */
   private readonly ?string $enumClass;
   private readonly bool $intBacked;
@@ -32,12 +43,33 @@ final class EnumSchema extends Schema {
     if (is_string($values)) {
       $this->enumClass = $values;
       [$this->values, $this->intBacked] = self::readBackedEnum($values);
+      $this->intSet = [];
+      $this->stringSet = [];
+      $this->otherValues = [];
     } else {
       self::assertValidList($values);
 
       $this->enumClass = null;
       $this->intBacked = false;
       $this->values = array_values($values);
+
+      $intSet = [];
+      $stringSet = [];
+      $otherValues = [];
+
+      foreach ($this->values as $value) {
+        if (is_int($value)) {
+          $intSet[$value] = true;
+        } elseif (is_string($value)) {
+          $stringSet[$value] = true;
+        } else {
+          $otherValues[] = $value;
+        }
+      }
+
+      $this->intSet = $intSet;
+      $this->stringSet = $stringSet;
+      $this->otherValues = $otherValues;
     }
 
     $this->failureMessage = 'Expected one of ' . implode(', ', array_map(self::formatValue(...), $this->values));
@@ -58,7 +90,13 @@ final class EnumSchema extends Schema {
   #[Override]
   protected function parseType(mixed $value, array $path = []): ParseResult {
     if ($this->enumClass === null) {
-      if (in_array($value, $this->values, true)) {
+      $found = match (true) {
+        is_int($value) => isset($this->intSet[$value]),
+        is_string($value) => isset($this->stringSet[$value]),
+        default => in_array($value, $this->otherValues, true),
+      };
+
+      if ($found) {
         return ParseResult::ok($value);
       }
 

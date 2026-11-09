@@ -131,6 +131,63 @@ class EnumSchemaTest extends BaseSchemaTestCase {
     $this->assertFalse($schema->safeParse(1.0)->success);
   }
 
+  public function test_parse_WithNumericStringAndInt_ShouldMatchOnlySameType(): void {
+    $mixed = V::enum([1, '1', 2.5, true, 'a', '0']);
+
+    $this->assertSame('1', $mixed->safeParse('1')->data);
+    $this->assertSame(1, $mixed->safeParse(1)->data);
+    $this->assertFalse(V::enum(['1'])->isValid(1));
+    $this->assertFalse(V::enum([1])->isValid('1'));
+  }
+
+  public function test_parse_WithWholeFloat_ShouldNotMatchInt(): void {
+    $this->assertFalse(V::enum([1])->isValid(1.0));
+  }
+
+  public function test_parse_WithTrue_ShouldNotMatchOneOrNumericString(): void {
+    $mixed = V::enum([1, '1', 2.5, true, 'a', '0']);
+
+    $this->assertFalse(V::enum([1, '1'])->isValid(true));
+    $this->assertTrue($mixed->isValid(true));
+  }
+
+  public function test_parse_WithNonCanonicalNumericString_ShouldNotMatch(): void {
+    $schema = V::enum([1, '1']);
+
+    foreach (['01', '1.0', ' 1'] as $value) {
+      $this->assertFalse($schema->isValid($value), var_export($value, true));
+    }
+  }
+
+  public function test_parse_WithZeroAndFalse_ShouldNotCrossMatch(): void {
+    $mixed = V::enum([1, '1', 2.5, true, 'a', '0']);
+    $noBool = V::enum([0, 'x']);
+
+    $this->assertFalse($mixed->isValid(0));
+    $this->assertFalse(V::enum(['0', false])->isValid(0));
+    $this->assertFalse($noBool->isValid('0'));
+    $this->assertFalse($noBool->isValid(false));
+    $this->assertSame('0', $mixed->safeParse('0')->data);
+  }
+
+  public function test_parse_WithArrayObjectOrNearFloat_ShouldFailWithInvalidEnumValue(): void {
+    $mixed = V::enum([1, '1', 2.5, true, 'a', '0']);
+
+    foreach ([[1], new stdClass(), 2.5000001] as $value) {
+      $result = $mixed->safeParse($value);
+
+      $this->assertFalse($result->success);
+      $this->assertCount(1, $result->issues);
+      $this->assertSame('invalid_enum_value', $result->issues[0]->code);
+    }
+  }
+
+  public function test_getValues_WithMixedList_ShouldKeepOriginalOrder(): void {
+    $mixed = V::enum([1, '1', 2.5, true, 'a', '0']);
+
+    $this->assertSame([1, '1', 2.5, true, 'a', '0'], $mixed->getValues());
+  }
+
   public function test_parseType_WithFloatValue_ShouldAcceptSameFloat(): void {
     $result = V::enum([1.5])->safeParse(1.5);
 
