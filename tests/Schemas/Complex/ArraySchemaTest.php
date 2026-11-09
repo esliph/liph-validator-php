@@ -532,15 +532,40 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('BIA', $result->data[1]->name);
   }
 
-  public function test_validateType_WhenParentRuleFails_ShouldNotValidateElements(): void {
+  public function test_min_WithAllItemsInvalid_ShouldReportOnlyItemIssues(): void {
     $schema = (new ArraySchema(new IntegerSchema()))->min(3);
 
     $result = $schema->safeParse(['a', 'b']);
 
     $this->assertFalse($result->success);
+    $this->assertCount(2, $result->issues);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame([0], $result->issues[0]->path);
+    $this->assertSame('invalid_type', $result->issues[1]->code);
+    $this->assertSame([1], $result->issues[1]->path);
+  }
+
+  public function test_min_WithInvalidItem_ShouldReportOnlyItemIssue(): void {
+    $result = (new ArraySchema(new IntegerSchema()))->min(3)->safeParse(['a']);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame([0], $result->issues[0]->path);
+  }
+
+  public function test_min_WithValidItemsBelowMin_ShouldFailTooSmall(): void {
+    $result = (new ArraySchema(new IntegerSchema()))->min(3)->safeParse([1]);
+
     $this->assertCount(1, $result->issues);
     $this->assertSame('too_small', $result->issues[0]->code);
     $this->assertSame([], $result->issues[0]->path);
+  }
+
+  public function test_refine_ShouldReceiveTransformedItems(): void {
+    $schema = (new ArraySchema((new IntegerSchema())->transform(fn(int $v): int => $v * 10)))
+      ->refine(fn(array $v): bool => $v === [10, 20]);
+
+    $this->assertTrue($schema->safeParse([1, 2])->success);
   }
 
   public function test_validateType_WhenElementFails_ShouldNotApplyTransforms(): void {
@@ -871,7 +896,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame([], $result->issues[0]->path);
   }
 
-  public function test_refine_WhenFailing_ShouldNotValidateElements(): void {
+  public function test_refine_WithInvalidItem_ShouldNotRun(): void {
     $schema = (new ArraySchema(new IntegerSchema()))->refine(
       fn(mixed $value): bool => false,
       'Always fails'
@@ -880,7 +905,8 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(['a']);
 
     $this->assertCount(1, $result->issues);
-    $this->assertSame('custom', $result->issues[0]->code);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame([0], $result->issues[0]->path);
   }
 
   public function test_optional_WithNonNullInvalidValue_ShouldStillFail(): void {

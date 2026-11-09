@@ -957,4 +957,15 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertTrue($result->success);
     $this->assertSame('', $result->data);
   }
+
+  public function test_parseType_WithObjectMemberFieldFailing_ShouldReportFieldIssue(): void {
+    $schema = new UnionSchema([new ObjectSchema(['a' => new IntegerSchema()]), new StringSchema()]);
+
+    $result = $schema->safeParse((object) ['a' => 'x']);
+
+    $this->assertFalse($result->success);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame(['a'], $result->issues[0]->path);
+  }
 }

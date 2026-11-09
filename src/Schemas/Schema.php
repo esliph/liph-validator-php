@@ -49,21 +49,18 @@ abstract class Schema {
       return $typeResult;
     }
 
-    $value = $typeResult->data;
+    $childResult = $this->validateType($typeResult->data, $path);
 
+    if (!$childResult->success) {
+      return $childResult->dirty ? $childResult : ParseResult::dirty($childResult->issues);
+    }
+
+    $value = $childResult->data;
     $issues = $this->validateRules($value, $path);
 
     if (!empty($issues)) {
       return ParseResult::dirty($issues);
     }
-
-    $typeResult = $this->validateType($value, $path);
-
-    if (!$typeResult->success) {
-      return $typeResult->dirty ? $typeResult : ParseResult::dirty($typeResult->issues);
-    }
-
-    $value = $typeResult->data;
 
     $value = $this->applyTransforms($value);
 

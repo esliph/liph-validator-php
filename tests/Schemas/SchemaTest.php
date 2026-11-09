@@ -1025,4 +1025,34 @@ class SchemaTest extends TestCase {
     $this->assertSame(['value' => 'fallback', 'input' => 'fallback'], $result->data);
     $this->assertSame(['x'], $calls);
   }
+
+  public function test_validateRules_AfterValidateType_ShouldReceiveChildOutput(): void {
+    $received = null;
+    $schema = (new TestSchema(checkValid: static fn(mixed $v, array $p): ParseResult => ParseResult::ok('child')))
+      ->refine(function (mixed $v) use (&$received): bool {
+        $received = $v;
+
+        return true;
+      });
+
+    $this->assertSame('child', $schema->parse('raw'));
+    $this->assertSame('child', $received);
+  }
+
+  public function test_validateRules_WhenValidateTypeFails_ShouldNotRun(): void {
+    $called = false;
+    $schema = (new TestSchema(checkValid: static fn(mixed $v, array $p): ParseResult => ParseResult::fail(
+      new Issue(path: $p, message: 'child', code: 'invalid_type')
+    )))->refine(function (mixed $v) use (&$called): bool {
+      $called = true;
+
+      return false;
+    });
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($called);
+    $this->assertTrue($result->dirty);
+    $this->assertSame(['child'], array_map(fn(Issue $i): string => $i->message, $result->issues));
+  }
 }

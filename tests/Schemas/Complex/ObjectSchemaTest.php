@@ -1157,7 +1157,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Dan is under age', $result->issues[0]->message);
   }
 
-  public function test_refine_WhenFailing_ShouldSkipChildValidation(): void {
+  public function test_refine_WithInvalidField_ShouldReportOnlyFieldIssue(): void {
     $schema = $this->createUserSchema()->refine(
       fn(mixed $value): bool => false,
       'Always fails'
@@ -1166,8 +1166,46 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse((object) ['name' => 1, 'age' => 'abc']);
 
     $this->assertFalse($result->success);
+    $this->assertCount(2, $result->issues);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame(['name'], $result->issues[0]->path);
+    $this->assertSame('invalid_type', $result->issues[1]->code);
+    $this->assertSame(['age'], $result->issues[1]->path);
+  }
+
+  public function test_refine_WithValidFieldsAndFailingRefine_ShouldReturnDirtyCustomIssue(): void {
+    $schema = $this->createUserSchema()->refine(
+      fn(mixed $value): bool => false,
+      'Always fails'
+    );
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30]);
+
+    $this->assertFalse($result->success);
+    $this->assertTrue($result->dirty);
     $this->assertCount(1, $result->issues);
     $this->assertSame('custom', $result->issues[0]->code);
+    $this->assertSame([], $result->issues[0]->path);
+  }
+
+  public function test_refine_ShouldReceiveParsedChildValues(): void {
+    $received = null;
+    $schema = (new ObjectSchema([
+      'role' => (new StringSchema())->_default('user'),
+      'age' => (new IntegerSchema())->coerce(),
+      'name' => (new StringSchema())->trim(),
+    ]))->refine(function (mixed $value) use (&$received): bool {
+      $received = $value;
+
+      return true;
+    });
+
+    $result = $schema->safeParse((object) ['age' => '30', 'name' => '  dan  ']);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('user', $received->role);
+    $this->assertSame(30, $received->age);
+    $this->assertSame('dan', $received->name);
   }
 
   public function test_refine_WithMultipleFailingRules_ShouldReportAllIssues(): void {
@@ -1183,7 +1221,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('Second', $result->issues[1]->message);
   }
 
-  public function test_refine_ShouldReceiveValueBeforeChildParsing(): void {
+  public function test_refine_ShouldReceiveTrimmedChildValue(): void {
     $received = null;
     $schema = (new ObjectSchema(['name' => (new StringSchema())->trim()]))->refine(
       function (mixed $value) use (&$received): bool {
@@ -1196,7 +1234,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse((object) ['name' => '  dan  ']);
 
     $this->assertTrue($result->success);
-    $this->assertSame('  dan  ', $received);
+    $this->assertSame('dan', $received);
     $this->assertSame('dan', $result->data->name);
   }
 
