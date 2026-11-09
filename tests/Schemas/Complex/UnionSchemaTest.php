@@ -958,6 +958,18 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame('', $result->data);
   }
 
+  public function test_parseType_WithSmallerObjectMemberFirst_ShouldStripKeysOfLargerMember(): void {
+    $schema = V::union(
+      V::object(['a' => V::string()]),
+      V::object(['a' => V::string(), 'b' => V::int()])
+    );
+
+    $result = $schema->safeParse((object) ['a' => 'x', 'b' => 1]);
+
+    $this->assertTrue($result->success);
+    $this->assertEquals((object) ['a' => 'x'], $result->data);
+  }
+
   public function test_parseType_WithObjectMemberFieldFailing_ShouldReportFieldIssue(): void {
     $schema = new UnionSchema([new ObjectSchema(['a' => new IntegerSchema()]), new StringSchema()]);
 

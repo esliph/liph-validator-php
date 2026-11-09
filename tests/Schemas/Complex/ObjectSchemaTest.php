@@ -150,7 +150,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result->success);
     $this->assertInstanceOf(\stdClass::class, $result->data);
-    $this->assertEquals((object) ['name' => 'Dan', 'extra' => 7], $result->data);
+    $this->assertEquals((object) ['name' => 'Dan'], $result->data);
   }
 
   public function test_coerce_WithAssociativeArray_ShouldConvertToObject(): void {
@@ -491,11 +491,99 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse((object) ['anything' => [1, 2, 3]]);
 
     $this->assertTrue($result->success);
+    $this->assertEquals(new \stdClass(), $result->data);
+  }
+
+  public function test_validateType_WithEmptyShapeAndPassthrough_ShouldKeepEveryKey(): void {
+    $schema = (new ObjectSchema())->passthrough();
+
+    $result = $schema->safeParse((object) ['anything' => [1, 2, 3]]);
+
+    $this->assertTrue($result->success);
     $this->assertSame([1, 2, 3], $result->data->anything);
   }
 
-  public function test_passthrough_ByDefault_ShouldCopyUnknownKeysUntouched(): void {
-    $schema = $this->createUserSchema();
+  public function test_strip_ByDefault_ShouldDropUnknownKeys(): void {
+    $result = $this->createUserSchema()->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 'x']);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('extra', $result->data);
+  }
+
+  public function test_strip_AfterPassthrough_ShouldDropUnknownKeys(): void {
+    $schema = $this->createUserSchema()->passthrough()->strip();
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 'x']);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('extra', $result->data);
+  }
+
+  public function test_strip_AfterStrict_ShouldAcceptAndDropUnknownKeys(): void {
+    $schema = $this->createUserSchema()->strict()->strip();
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 'x']);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('extra', $result->data);
+  }
+
+  public function test_strip_AfterCatchall_ShouldNotValidateUnknownKeys(): void {
+    $schema = $this->createUserSchema()->catchall(new IntegerSchema())->strip();
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 'not int']);
+
+    $this->assertTrue($result->success);
+    $this->assertObjectNotHasProperty('extra', $result->data);
+  }
+
+  public function test_strict_AfterStrip_ShouldReportOneIssuePerKey(): void {
+    $schema = $this->createUserSchema()->strip()->strict();
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'x' => 1, 'y' => 2]);
+
+    $this->assertFalse($result->success);
+    $this->assertCount(2, $result->issues);
+    $this->assertSame('unrecognized_keys', $result->issues[0]->code);
+    $this->assertSame(['x'], $result->issues[0]->path);
+    $this->assertSame('unrecognized_keys', $result->issues[1]->code);
+    $this->assertSame(['y'], $result->issues[1]->path);
+  }
+
+  public function test_passthrough_ShouldCopyUnknownKeysAfterShapeFieldsInInputOrder(): void {
+    $schema = $this->createUserSchema()->passthrough();
+
+    $result = $schema->safeParse((object) ['z' => 1, 'name' => 'Dan', 'a' => 2, 'age' => 30]);
+
+    $this->assertTrue($result->success);
+    $this->assertSame(['name', 'age', 'z', 'a'], array_keys(get_object_vars($result->data)));
+  }
+
+  public function test_refine_ShouldNotReceiveUnknownKeys(): void {
+    $received = null;
+    $schema = $this->createUserSchema()->refine(function (mixed $value) use (&$received): bool {
+      $received = $value;
+
+      return true;
+    });
+
+    $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => 'x']);
+
+    $this->assertObjectNotHasProperty('extra', $received);
+  }
+
+  public function test_strip_ShouldNotModifyOriginalSchema(): void {
+    $base = $this->createUserSchema();
+    $base->passthrough()->strip();
+    $p = $base->passthrough();
+    $input = (object) ['name' => 'Dan', 'age' => 30, 'extra' => 'x'];
+
+    $this->assertObjectNotHasProperty('extra', $base->parse($input));
+    $this->assertSame('x', $p->parse($input)->extra);
+  }
+
+  public function test_passthrough_ShouldCopyUnknownKeysUntouched(): void {
+    $schema = $this->createUserSchema()->passthrough();
     $extra = (object) ['nested' => true];
 
     $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'extra' => $extra, 'nothing' => null]);
@@ -982,7 +1070,7 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse((object) ['name' => 'Dan', 'age' => 30, 'email' => 'a@b.com', 'x' => 1]);
 
     $this->assertTrue($result->success);
-    $this->assertSame(1, $result->data->x);
+    $this->assertObjectNotHasProperty('x', $result->data);
   }
 
   public function test_merge_ShouldNotModifyEitherSchema(): void {

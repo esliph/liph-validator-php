@@ -11,7 +11,8 @@ use Override;
 
 final class ObjectSchema extends CoercibleSchema {
 
-  protected bool $strict = false;
+  /** @var 'strip'|'strict'|'passthrough'|'catchall' */
+  protected string $unknownKeys = 'strip';
   protected ?Schema $catchall = null;
 
   /**
@@ -83,16 +84,18 @@ final class ObjectSchema extends CoercibleSchema {
       }
     }
 
-    if ($this->strict) {
+    if ($this->unknownKeys !== 'strip') {
       foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
+        if (isset($this->shape[$key])) {
+          continue;
+        }
+
+        if ($this->unknownKeys === 'passthrough') {
+          $parsedValue->$key = $val;
+        } elseif ($this->unknownKeys === 'strict') {
           $fieldPath = array_merge($path, [$key]);
           $issues[] = $this->issue('unrecognized_keys', 'Unrecognized key in object', $val, $fieldPath, ['key' => $key]);
-        }
-      }
-    } else if ($this->catchall !== null) {
-      foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
+        } elseif ($this->catchall !== null) {
           $fieldPath = array_merge($path, [$key]);
           $result = $this->catchall->_parse($val, $fieldPath);
 
@@ -101,12 +104,6 @@ final class ObjectSchema extends CoercibleSchema {
           } else {
             $parsedValue->$key = $result->data;
           }
-        }
-      }
-    } else {
-      foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
-          $parsedValue->$key = $val;
         }
       }
     }
@@ -225,9 +222,17 @@ final class ObjectSchema extends CoercibleSchema {
     return $this->withShape($newShape);
   }
 
+  public function strip(): static {
+    $clone = clone $this;
+    $clone->unknownKeys = 'strip';
+    $clone->catchall = null;
+
+    return $clone;
+  }
+
   public function strict(): static {
     $clone = clone $this;
-    $clone->strict = true;
+    $clone->unknownKeys = 'strict';
     $clone->catchall = null;
 
     return $clone;
@@ -235,7 +240,7 @@ final class ObjectSchema extends CoercibleSchema {
 
   public function passthrough(): static {
     $clone = clone $this;
-    $clone->strict = false;
+    $clone->unknownKeys = 'passthrough';
     $clone->catchall = null;
 
     return $clone;
@@ -243,7 +248,7 @@ final class ObjectSchema extends CoercibleSchema {
 
   public function catchall(Schema $schema): static {
     $clone = clone $this;
-    $clone->strict = false;
+    $clone->unknownKeys = 'catchall';
     $clone->catchall = $schema;
 
     return $clone;
