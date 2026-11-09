@@ -328,10 +328,6 @@ abstract class Schema {
   }
 
   protected function isAssociativeArray(array $array): bool {
-    if (empty($array)) {
-      return false;
-    }
-
-    return array_keys($array) !== range(0, count($array) - 1);
+    return $array !== [] && !array_is_list($array);
   }
 }
