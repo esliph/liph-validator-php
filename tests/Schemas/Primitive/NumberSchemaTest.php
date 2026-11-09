@@ -125,6 +125,8 @@ class NumberSchemaTest extends NumberSchemaTestCase {
       'decimal' => ['1.5', 1.5],
       'exponent' => ['1e3', 1000.0],
       'beyond_int_range' => ['99999999999999999999', 1.0E20],
+      'nineteen_digits_in_range' => ['1000000000000000000', 1000000000000000000],
+      'above_int_max' => ['9223372036854775808', 9.2233720368547758E18],
     ];
   }
 

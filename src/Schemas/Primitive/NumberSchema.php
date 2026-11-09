@@ -25,25 +25,25 @@ class NumberSchema extends CoercibleSchema {
 
   #[Override]
   protected function coerceInput(mixed $value): mixed {
-    if (self::isBlank($value)) {
-      return null;
-    }
-
     if (!is_string($value)) {
       return $value;
     }
 
     $trimmed = trim($value);
 
-    if (preg_match(self::INT_PATTERN, $trimmed) === 1) {
+    if ($trimmed === '') {
+      return null;
+    }
+
+    if (preg_match(self::FLOAT_PATTERN, $trimmed) !== 1) {
+      return $value;
+    }
+
+    if (strpbrk($trimmed, '.eE') === false) {
       return self::toExactInt($trimmed) ?? (float) $trimmed;
     }
 
-    if (preg_match(self::FLOAT_PATTERN, $trimmed) === 1) {
-      return (float) $trimmed;
-    }
-
-    return $value;
+    return (float) $trimmed;
   }
 
   /**
@@ -51,6 +51,12 @@ class NumberSchema extends CoercibleSchema {
    */
   protected static function toExactInt(string $trimmed): ?int {
     $int = (int) $trimmed;
+
+    if (strlen($trimmed) <= 18) {
+      return $int;
+    }
+
+
     $digits = ltrim(ltrim($trimmed, '+-'), '0');
     $canonical = $digits === '' ? '0' : ($trimmed[0] === '-' ? '-' : '') . $digits;
 

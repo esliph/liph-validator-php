@@ -429,6 +429,10 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
       'int_min' => [(string) PHP_INT_MIN, PHP_INT_MIN],
       'int_max_with_leading_zeros' => ['0009223372036854775807', PHP_INT_MAX],
       'beyond_float_precision' => ['9007199254740993', 9007199254740993],
+      'eighteen_nines' => ['999999999999999999', 999999999999999999],
+      'negative_seventeen_nines' => ['-99999999999999999', -99999999999999999],
+      'nineteen_digits_in_range' => ['1000000000000000000', 1000000000000000000],
+      'eighteen_chars_with_sign_and_zeros' => ['+00000000000000007', 7],
     ];
   }
 
@@ -471,6 +475,7 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
       'twenty_nines' => ['99999999999999999999'],
       'spaces' => ['  9223372036854775808  '],
       'leading_zeros' => ['00009223372036854775808'],
+      'leading_space_twenty_chars' => [' 9223372036854775808'],
     ];
   }
 
@@ -491,6 +496,13 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('invalid_type', $default->issues[0]->code);
     $this->assertSame('Expected int, received number outside the int range', $default->issues[0]->message);
     $this->assertSame([$input, ['expected' => 'int', 'received' => 'string']], $received);
+  }
+
+  public function test_coerce_WithShortInvalidString_ShouldFailWithoutRangeText(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('abc');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
   }
 
   public function test_coerce_WithOverflowingExponentString_ShouldFailInvalidType(): void {

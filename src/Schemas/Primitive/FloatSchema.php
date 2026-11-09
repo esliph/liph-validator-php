@@ -10,12 +10,18 @@ class FloatSchema extends NumberSchema {
 
   #[Override]
   protected function coerceInput(mixed $value): mixed {
-    if (self::isBlank($value)) {
+    if (!is_string($value)) {
+      return $value;
+    }
+
+    $trimmed = trim($value);
+
+    if ($trimmed === '') {
       return null;
     }
 
-    if (is_string($value) && preg_match(self::FLOAT_PATTERN, trim($value)) === 1) {
-      return (float) trim($value);
+    if (preg_match(self::FLOAT_PATTERN, $trimmed) === 1) {
+      return (float) $trimmed;
     }
 
     return $value;
