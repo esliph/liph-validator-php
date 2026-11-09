@@ -455,11 +455,29 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithOverflowingExponentialString_ShouldFailWithNotFinite(): void {
-    $result = $this->createNumberSchema()->coerce()->safeParse('1e400');
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideNonGrammarStrings(): array {
+    return [
+      'trailing_dot' => ['1.'],
+      'hex' => ['0x1A'],
+      'underscore' => ['1_000'],
+      'inner_space' => ['1 000'],
+      'double_sign' => ['+-1'],
+      'bare_exponent' => ['e3'],
+      'inner_newline' => ["1\n2"],
+      'inf_word' => ['INF'],
+    ];
+  }
+
+  #[DataProvider('provideNonGrammarStrings')]
+  public function test_coerce_WithNonGrammarString_ShouldFailInvalidType(string $input): void {
+    $result = $this->createNumberSchema()->coerce()->safeParse($input);
 
     $this->assertFalse($result->success);
-    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected ' . $this->expectedTypeLabel() . ', received string', $result->issues[0]->message);
   }
 
   public function test_messages_WithNotFiniteClosure_ShouldReceiveOriginalValueAndEmptyParams(): void {
@@ -471,11 +489,11 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
       },
     ]);
 
-    $result = $schema->safeParse('1e400');
+    $result = $schema->safeParse(INF);
 
     $this->assertSame('not_finite', $result->issues[0]->code);
     $this->assertSame('finito, por favor', $result->issues[0]->message);
-    $this->assertSame(['1e400', []], $received);
+    $this->assertSame([INF, []], $received);
   }
 
   #[DataProvider('provideNonFiniteValues')]

@@ -14,6 +14,10 @@ class NumberSchema extends CoercibleSchema {
 
   private const float MULTIPLE_OF_TOLERANCE = 1e-9;
 
+  protected const string INT_PATTERN = '/^[+-]?\d+\z/';
+
+  protected const string FLOAT_PATTERN = '/^[+-]?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?\z/';
+
   #[Override]
   protected static function messageCodes(): array {
     return [...parent::messageCodes(), 'not_finite'];
@@ -25,16 +29,36 @@ class NumberSchema extends CoercibleSchema {
       return null;
     }
 
+    if (!is_string($value)) {
+      return $value;
+    }
+
+    $trimmed = trim($value);
+
+    if (preg_match(self::INT_PATTERN, $trimmed) === 1) {
+      return self::toExactInt($trimmed) ?? (float) $trimmed;
+    }
+
+    if (preg_match(self::FLOAT_PATTERN, $trimmed) === 1) {
+      return (float) $trimmed;
+    }
+
     return $value;
+  }
+
+  /**
+   * Recebe uma string que casa com INT_PATTERN e devolve o int exato, ou null se não couber.
+   */
+  protected static function toExactInt(string $trimmed): ?int {
+    $int = (int) $trimmed;
+    $digits = ltrim(ltrim($trimmed, '+-'), '0');
+    $canonical = $digits === '' ? '0' : ($trimmed[0] === '-' ? '-' : '') . $digits;
+
+    return (string) $int === $canonical ? $int : null;
   }
 
   #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
-    if ($this->coerce && is_string($value) && is_numeric($value)) {
-      // Aritmética de string numérica: inteiro que cabe vira int, o resto vira float.
-      $value = $value + 0;
-    }
-
     if (is_int($value)) {
       return ParseResult::ok($value);
     }

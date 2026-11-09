@@ -3,7 +3,9 @@
 namespace Esliph\Validator\Tests\Schemas\Primitive;
 
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 
+use Esliph\Validator\V;
 use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
 
@@ -31,7 +33,7 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('Expected int, received string', $result->issues[0]->message);
   }
 
-  public function test_coerce_WithDecimalString_ShouldReportDecimalPartAndPassOriginalToClosure(): void {
+  public function test_coerce_WithDecimalString_ShouldReportStringAndPassOriginalToClosure(): void {
     $received = null;
     $schema = (new IntegerSchema())->coerce();
     $custom = $schema->messages([
@@ -44,7 +46,7 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $default = $schema->safeParse('1.5');
     $custom->safeParse('1.5');
 
-    $this->assertSame('Expected int, received float with decimal part', $default->issues[0]->message);
+    $this->assertSame('Expected int, received string', $default->issues[0]->message);
     $this->assertSame(['1.5', ['expected' => 'int', 'received' => 'string']], $received);
   }
 
@@ -210,11 +212,11 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithNonDecimalFloatString_ShouldPass(): void {
+  public function test_coerce_WithNonDecimalFloatString_ShouldFail(): void {
     $result = (new IntegerSchema())->coerce()->safeParse('5.0');
 
-    $this->assertTrue($result->success);
-    $this->assertSame(5, $result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_coerce_WithZeroString_ShouldCoerceToZero(): void {
@@ -328,11 +330,11 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
-  public function test_coerce_WithExponentialString_ShouldPass(): void {
+  public function test_coerce_WithExponentialString_ShouldFail(): void {
     $result = (new IntegerSchema())->coerce()->safeParse('1e3');
 
-    $this->assertTrue($result->success);
-    $this->assertSame(1000, $result->data);
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
   }
 
   public function test_parseType_WithFloatAboveIntRange_ShouldReject(): void {
@@ -386,5 +388,100 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $result = (new IntegerSchema())->coerce()->safeParse('1e20');
 
     $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
+  }
+
+  /**
+   * @return array<string, array{string, int}>
+   */
+  public static function provideIntGrammarStrings(): array {
+    return [
+      'spaces' => [' 1 ', 1],
+      'plus_sign' => ['+1', 1],
+      'leading_zeros' => ['007', 7],
+      'negative_zero' => ['-0', 0],
+      'positive_zero' => ['+0', 0],
+      'int_max' => [(string) PHP_INT_MAX, PHP_INT_MAX],
+      'int_min' => [(string) PHP_INT_MIN, PHP_INT_MIN],
+      'int_max_with_leading_zeros' => ['0009223372036854775807', PHP_INT_MAX],
+      'beyond_float_precision' => ['9007199254740993', 9007199254740993],
+    ];
+  }
+
+  #[DataProvider('provideIntGrammarStrings')]
+  public function test_coerce_WithIntGrammarString_ShouldCoerceExactly(string $input, int $expected): void {
+    $result = (new IntegerSchema())->coerce()->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($expected, $result->data);
+  }
+
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideFloatGrammarStrings(): array {
+    return [
+      'decimal_zero' => ['1.0'],
+      'exponent' => ['1e3'],
+      'leading_dot' => ['.5'],
+      'decimal' => ['1.5'],
+    ];
+  }
+
+  #[DataProvider('provideFloatGrammarStrings')]
+  public function test_coerce_WithFloatGrammarString_ShouldFailInvalidType(string $input): void {
+    $result = (new IntegerSchema())->coerce()->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
+  }
+
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideOutOfRangeIntStrings(): array {
+    return [
+      'above_max' => ['9223372036854775808'],
+      'below_min' => ['-9223372036854775809'],
+      'twenty_nines' => ['99999999999999999999'],
+      'spaces' => ['  9223372036854775808  '],
+      'leading_zeros' => ['00009223372036854775808'],
+    ];
+  }
+
+  #[DataProvider('provideOutOfRangeIntStrings')]
+  public function test_coerce_WithOutOfRangeIntString_ShouldReportRangeWithOriginalInClosure(string $input): void {
+    $received = null;
+    $schema = (new IntegerSchema())->coerce();
+    $custom = $schema->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $default = $schema->safeParse($input);
+    $custom->safeParse($input);
+
+    $this->assertSame('invalid_type', $default->issues[0]->code);
+    $this->assertSame('Expected int, received number outside the int range', $default->issues[0]->message);
+    $this->assertSame([$input, ['expected' => 'int', 'received' => 'string']], $received);
+  }
+
+  public function test_coerce_WithOverflowingExponentString_ShouldFailInvalidType(): void {
+    $result = (new IntegerSchema())->coerce()->safeParse('1e400');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  public function test_default_WithNumericStringAndCoerce_ShouldFailInvalidType(): void {
+    $result = V::int()->coerce()->_default('5')->safeParse(null);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
   }
 }

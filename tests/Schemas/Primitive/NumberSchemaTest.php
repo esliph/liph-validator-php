@@ -3,6 +3,7 @@
 namespace Esliph\Validator\Tests\Schemas\Primitive;
 
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
 
@@ -93,6 +94,46 @@ class NumberSchemaTest extends NumberSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithOverflowingExponentialString_ShouldFailNotFiniteWithOriginalInClosure(): void {
+    $received = null;
+    $schema = (new NumberSchema())->coerce()->messages([
+      'not_finite' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse('1e400');
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame(['1e400', []], $received);
+  }
+
+  /**
+   * @return array<string, array{string, int|float}>
+   */
+  public static function provideNumberGrammarStrings(): array {
+    return [
+      'spaces' => [' 1 ', 1],
+      'plus_sign' => ['+1', 1],
+      'leading_zeros' => ['007', 7],
+      'negative_zero' => ['-0', 0],
+      'int_max' => [(string) PHP_INT_MAX, PHP_INT_MAX],
+      'leading_dot' => ['.5', 0.5],
+      'decimal' => ['1.5', 1.5],
+      'exponent' => ['1e3', 1000.0],
+      'beyond_int_range' => ['99999999999999999999', 1.0E20],
+    ];
+  }
+
+  #[DataProvider('provideNumberGrammarStrings')]
+  public function test_coerce_WithNumberGrammarString_ShouldCoerce(string $input, int|float $expected): void {
+    $result = (new NumberSchema())->coerce()->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($expected, $result->data);
   }
 
   public function test_parseType_WithBool_ShouldDescribeAsBool(): void {
