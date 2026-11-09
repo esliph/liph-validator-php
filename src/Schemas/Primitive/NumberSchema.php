@@ -36,14 +36,7 @@ class NumberSchema extends CoercibleSchema {
       return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $input, $path);
     }
 
-    $received = self::describeType($input);
-
-    return ParseResult::fail(
-      $this->issue('invalid_type', "Expected number, received $received", $input, $path, [
-        'expected' => 'number',
-        'received' => $received,
-      ])
-    );
+    return ParseResult::fail($this->typeIssue('number', $input, $path));
   }
 
   /**

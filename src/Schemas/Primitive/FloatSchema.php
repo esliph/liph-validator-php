@@ -24,13 +24,6 @@ class FloatSchema extends NumberSchema {
       return ParseResult::ok((float) $value);
     }
 
-    $received = self::describeType($input);
-
-    return ParseResult::fail(
-      $this->issue('invalid_type', "Expected float, received $received", $input, $path, [
-        'expected' => 'float',
-        'received' => $received,
-      ])
-    );
+    return ParseResult::fail($this->typeIssue('float', $input, $path));
   }
 }

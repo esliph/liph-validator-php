@@ -899,6 +899,16 @@ class UnionSchemaTest extends BaseSchemaTestCase {
     $this->assertSame([1.5, []], $received);
   }
 
+  public function test_parseType_WithDirtyMemberStringMessage_ShouldKeepLiteral(): void {
+    $schema = V::union(V::object(['a' => V::int()->messages(['invalid_type' => 'A inteiro'])]), V::string());
+
+    $result = $schema->safeParse((object) ['a' => 'x']);
+
+    $this->assertCount(1, $result->issues);
+    $this->assertSame(['a'], $result->issues[0]->path);
+    $this->assertSame('A inteiro', $result->issues[0]->message);
+  }
+
   public function test_messages_WithDirtyMember_ShouldReturnMemberCustomMessage(): void {
     $schema = V::union(
       V::object(['a' => V::int()->messages(['invalid_type' => 'a inválido'])]),

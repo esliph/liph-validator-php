@@ -14,14 +14,10 @@ final class BooleanSchema extends CoercibleSchema {
       return ParseResult::ok($value);
     }
 
-    if (!$this->coerce) {
-      return $this->invalidTypeBoolean($value, $path);
-    }
-
-    $coerced = $this->coerceToBoolean($value);
+    $coerced = $this->coerce ? $this->coerceToBoolean($value) : null;
 
     if ($coerced === null) {
-      return $this->invalidTypeBoolean($value, $path);
+      return ParseResult::fail($this->typeIssue('bool', $value, $path));
     }
 
     return ParseResult::ok($coerced);
@@ -47,19 +43,5 @@ final class BooleanSchema extends CoercibleSchema {
     }
 
     return null;
-  }
-
-  /**
-   * @param string[] $path
-   */
-  private function invalidTypeBoolean(mixed $value, array $path): ParseResult {
-    $received = self::describeType($value);
-
-    return ParseResult::fail(
-      $this->issue('invalid_type', "Expected bool, received $received", $value, $path, [
-        'expected' => 'bool',
-        'received' => $received,
-      ])
-    );
   }
 }

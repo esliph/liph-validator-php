@@ -35,9 +35,7 @@ class IntegerSchema extends NumberSchema {
       return $this->parseFloat($value, $input, $path);
     }
 
-    $received = self::describeType($input);
-
-    return $this->invalidIntType("Expected int, received $received", $input, $path);
+    return ParseResult::fail($this->typeIssue('int', $input, $path));
   }
 
   /**
@@ -49,7 +47,7 @@ class IntegerSchema extends NumberSchema {
     }
 
     if (fmod($value, 1.0) !== 0.0) {
-      return $this->invalidIntType('Expected int, received float with decimal part', $input, $path);
+      return ParseResult::fail($this->typeIssue('int', $input, $path, 'float with decimal part'));
     }
 
     if ($value < (float) PHP_INT_MIN || $value >= self::INT_RANGE_END) {
@@ -63,18 +61,6 @@ class IntegerSchema extends NumberSchema {
    * @param string[] $path
    */
   private function outOfRangeIssue(mixed $input, array $path): ParseResult {
-    return $this->invalidIntType('Expected int, received number outside the int range', $input, $path);
-  }
-
-  /**
-   * @param string[] $path
-   */
-  private function invalidIntType(string $default, mixed $input, array $path): ParseResult {
-    return ParseResult::fail(
-      $this->issue('invalid_type', $default, $input, $path, [
-        'expected' => 'int',
-        'received' => self::describeType($input),
-      ])
-    );
+    return ParseResult::fail($this->typeIssue('int', $input, $path, 'number outside the int range'));
   }
 }

@@ -28,16 +28,12 @@ final class DateSchema extends CoercibleSchema {
       return ParseResult::ok(DateTimeImmutable::createFromInterface($value));
     }
 
-    if (!$this->coerce) {
-      return $this->invalidDateType($value, $path);
-    }
-
-    if (is_int($value)) {
+    if ($this->coerce && is_int($value)) {
       return ParseResult::ok((new DateTimeImmutable())->setTimestamp($value));
     }
 
-    if (!is_string($value)) {
-      return $this->invalidDateType($value, $path);
+    if (!$this->coerce || !is_string($value)) {
+      return ParseResult::fail($this->typeIssue('DateTimeImmutable', $value, $path));
     }
 
     // Em branco, o construtor devolveria o instante atual.
@@ -59,20 +55,6 @@ final class DateSchema extends CoercibleSchema {
     }
 
     return ParseResult::ok($date);
-  }
-
-  /**
-   * @param string[] $path
-   */
-  private function invalidDateType(mixed $value, array $path): ParseResult {
-    $received = self::describeType($value);
-
-    return ParseResult::fail(
-      $this->issue('invalid_type', "Expected DateTimeImmutable, received $received", $value, $path, [
-        'expected' => 'DateTimeImmutable',
-        'received' => $received,
-      ])
-    );
   }
 
   /**

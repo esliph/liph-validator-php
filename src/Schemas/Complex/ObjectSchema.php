@@ -46,14 +46,7 @@ final class ObjectSchema extends CoercibleSchema {
     }
 
     if (!is_object($value)) {
-      $received = self::describeType($value);
-
-      return ParseResult::fail(
-        $this->issue('invalid_type', "Expected object, received $received", $value, $path, [
-          'expected' => 'object',
-          'received' => $received,
-        ])
-      );
+      return ParseResult::fail($this->typeIssue('object', $value, $path));
     }
 
     return ParseResult::ok($value);

@@ -279,20 +279,40 @@ abstract class Schema {
   }
 
   /**
+   * Porta obrigatória de todo `invalid_type` no padrão "Expected X, received Y".
+   * `$input` é o valor original, antes da coerção; `received` é
+   * `get_debug_type($input)` (`int`, `float`, `bool`, `null`, nome de classe,
+   * `resource (stream)`), e `$receivedText` só troca o texto padrão.
+   *
+   * Uma string customizada não paga `get_debug_type`, e sem customização os
+   * params não são montados. A Closure continua sendo resolvida só em `issue()`.
+   *
+   * @param string[] $path
+   */
+  protected function typeIssue(string $expected, mixed $input, array $path, ?string $receivedText = null): Issue {
+    $custom = $this->messages['invalid_type'] ?? null;
+
+    if (is_string($custom)) {
+      return new Issue(path: $path, message: $custom, code: 'invalid_type');
+    }
+
+    $received = get_debug_type($input);
+    $default = "Expected $expected, received " . ($receivedText ?? $received);
+
+    if ($custom === null) {
+      return new Issue(path: $path, message: $default, code: 'invalid_type');
+    }
+
+    return $this->issue('invalid_type', $default, $input, $path, ['expected' => $expected, 'received' => $received]);
+  }
+
+  /**
    * @throws InvalidArgumentException se a contagem for negativa
    */
   protected static function assertCount(int $n, string $method): void {
     if ($n < 0) {
       throw new InvalidArgumentException("$method length must be a non-negative int");
     }
-  }
-
-  /**
-   * Vocabulário de tipos das mensagens: `int`, `float`, `bool`, `null`, nome de
-   * classe, `resource (stream)`.
-   */
-  protected static function describeType(mixed $value): string {
-    return get_debug_type($value);
   }
 
   /**

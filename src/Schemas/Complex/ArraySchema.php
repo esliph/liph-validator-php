@@ -33,23 +33,11 @@ final class ArraySchema extends CoercibleSchema {
     }
 
     if (!is_array($value)) {
-      $received = self::describeType($input);
-
-      return ParseResult::fail(
-        $this->issue('invalid_type', "Expected array, received $received", $input, $path, [
-          'expected' => 'array',
-          'received' => $received,
-        ])
-      );
+      return ParseResult::fail($this->typeIssue('array', $input, $path));
     }
 
     if ($this->isAssociativeArray($value)) {
-      return ParseResult::fail(
-        $this->issue('invalid_type', 'Expected list, received associative array', $input, $path, [
-          'expected' => 'list',
-          'received' => 'array',
-        ])
-      );
+      return ParseResult::fail($this->typeIssue('list', $input, $path, 'associative array'));
     }
 
     return ParseResult::ok($value);

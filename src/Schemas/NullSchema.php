@@ -27,13 +27,6 @@ final class NullSchema extends Schema {
       return ParseResult::ok(null);
     }
 
-    $received = self::describeType($value);
-
-    return ParseResult::fail(
-      $this->issue('invalid_type', "Expected null, received $received", $value, $path, [
-        'expected' => 'null',
-        'received' => $received,
-      ])
-    );
+    return ParseResult::fail($this->typeIssue('null', $value, $path));
   }
 }

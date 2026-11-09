@@ -1011,6 +1011,29 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['"x"', ['expected' => 'array', 'received' => 'string']], $received);
   }
 
+  public function test_messages_WithStringAndAssociativeArray_ShouldUseLiteral(): void {
+    $result = (new ArraySchema())->messages(['invalid_type' => 'Lista'])->safeParse(['a' => 1]);
+
+    $this->assertSame('Lista', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithCoercedAssociativeJsonClosure_ShouldReceiveOriginalStringAsReceived(): void {
+    $received = null;
+    $schema = (new ArraySchema())->coerce();
+    $custom = $schema->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $default = $schema->safeParse('{"a":1}');
+    $custom->safeParse('{"a":1}');
+
+    $this->assertSame('Expected list, received associative array', $default->issues[0]->message);
+    $this->assertSame(['{"a":1}', ['expected' => 'list', 'received' => 'string']], $received);
+  }
+
   /**
    * @return iterable<string, array{Closure(ArraySchema, int): ArraySchema, string}>
    */

@@ -65,6 +65,33 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
     $this->assertSame(['99999999999999999999', ['expected' => 'int', 'received' => 'string']], $received);
   }
 
+  public function test_parse_WithDecimalFloat_ShouldReportDecimalPart(): void {
+    $result = (new IntegerSchema())->safeParse(1.5);
+
+    $this->assertSame('Expected int, received float with decimal part', $result->issues[0]->message);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  public function test_messages_WithStringAndDecimalFloat_ShouldUseLiteral(): void {
+    $result = (new IntegerSchema())->messages(['invalid_type' => 'Inteiro'])->safeParse(1.5);
+
+    $this->assertSame('Inteiro', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithClosureAndDecimalFloat_ShouldReceiveOriginalAndParams(): void {
+    $received = null;
+    $schema = (new IntegerSchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse(1.5);
+
+    $this->assertSame([1.5, ['expected' => 'int', 'received' => 'float']], $received);
+  }
+
   public function test_messages_FollowedByRuleAndCoerce_ShouldKeepCustomMessages(): void {
     $schema = (new IntegerSchema())->messages(['invalid_type' => 'X'])->min(1)->coerce();
 
