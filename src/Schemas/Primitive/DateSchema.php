@@ -28,6 +28,14 @@ final class DateSchema extends CoercibleSchema {
       return null;
     }
 
+    if (is_int($value)) {
+      return (new DateTimeImmutable())->setTimestamp($value);
+    }
+
+    if (is_string($value)) {
+      return $this->parseDateString($value) ?? $value;
+    }
+
     return $value;
   }
 
@@ -37,41 +45,36 @@ final class DateSchema extends CoercibleSchema {
       return ParseResult::ok(DateTimeImmutable::createFromInterface($value));
     }
 
-    if ($this->coerce && is_int($value)) {
-      return ParseResult::ok((new DateTimeImmutable())->setTimestamp($value));
-    }
-
-    if (!$this->coerce || !is_string($value)) {
-      return ParseResult::fail($this->typeIssue('DateTimeImmutable', $input, $path));
-    }
-
-    // Em branco, o construtor devolveria o instante atual.
-    if (trim($value) === '') {
+    if ($this->coerce && is_string($value)) {
       return $this->invalidDate($input, $path);
     }
 
+    return ParseResult::fail($this->typeIssue('DateTimeImmutable', $input, $path));
+  }
+
+  private function parseDateString(string $value): ?DateTimeImmutable {
     try {
       $date = $this->format !== null
         ? DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone)
         : new DateTimeImmutable($value, $this->timezone);
     } catch (Exception) {
-      return $this->invalidDate($input, $path);
+      return null;
     }
 
     // Data impossível (ex.: 2024-02-30) só gera warning e seria normalizada para o mês seguinte.
     if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
-      return $this->invalidDate($input, $path);
+      return null;
     }
 
-    return ParseResult::ok($date);
+    return $date;
   }
 
   /**
    * @param string[] $path
    */
-  private function invalidDate(mixed $value, array $path): ParseResult {
+  private function invalidDate(mixed $input, array $path): ParseResult {
     return ParseResult::fail(
-      $this->issue('invalid_date', 'Invalid date string', $value, $path, ['format' => $this->format])
+      $this->issue('invalid_date', 'Invalid date string', $input, $path, ['format' => $this->format])
     );
   }
 

@@ -973,14 +973,28 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('2024-01-15', $result->data->format('Y-m-d'));
   }
 
-  public function test_default_WithStringAndCoerce_ShouldCoerceDefault(): void {
+  public function test_default_WithStringAndCoerce_ShouldFailInvalidDate(): void {
     $schema = (new DateSchema())->coerce()->_default('2024-01-15T00:00:00+00:00');
 
     $result = $schema->safeParse(null);
 
-    $this->assertTrue($result->success);
-    $this->assertInstanceOf(DateTimeImmutable::class, $result->data);
-    $this->assertSame('2024-01-15', $result->data->format('Y-m-d'));
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_date', $result->issues[0]->code);
+  }
+
+  public function test_coerce_WithImpossibleDate_ShouldPassOriginalToClosure(): void {
+    $received = null;
+    $schema = (new DateSchema())->coerce()->messages([
+      'invalid_date' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+
+        return 'x';
+      },
+    ]);
+
+    $schema->safeParse('2024-02-30');
+
+    $this->assertSame(['2024-02-30', ['format' => null]], $received);
   }
 
   public function test_default_WithStringWithoutCoerce_ShouldFailWithInvalidType(): void {
