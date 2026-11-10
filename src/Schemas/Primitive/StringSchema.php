@@ -12,6 +12,9 @@ use Stringable;
 
 final class StringSchema extends CoercibleSchema {
 
+  /** @var list<'trim'|'lower'|'upper'> */
+  private array $normalizers = [];
+
   #[Override]
   protected function coerceInput(mixed $value): mixed {
     if (is_int($value) || is_float($value) && is_finite($value) || $value instanceof Stringable) {
@@ -28,6 +31,26 @@ final class StringSchema extends CoercibleSchema {
     }
 
     return ParseResult::fail($this->typeIssue('string', $input, $path));
+  }
+
+  /**
+   * Aplica os normalizadores na ordem de registro, entre a checagem de tipo e
+   * as regras. Nunca falha. Com UTF-8 inválido, os de caixa devolvem a string
+   * intacta, porque o mbstring trocaria os bytes inválidos.
+   *
+   * @param string[] $path
+   */
+  #[Override]
+  protected function validateType(mixed $value, array $path = []): ParseResult {
+    foreach ($this->normalizers as $normalizer) {
+      $value = match ($normalizer) {
+        'trim' => trim($value),
+        'lower' => mb_check_encoding($value, 'UTF-8') ? mb_strtolower($value, 'UTF-8') : $value,
+        'upper' => mb_check_encoding($value, 'UTF-8') ? mb_strtoupper($value, 'UTF-8') : $value,
+      };
+    }
+
+    return ParseResult::ok($value);
   }
 
   /**
@@ -168,14 +191,24 @@ final class StringSchema extends CoercibleSchema {
   }
 
   public function trim(): static {
-    return $this->transform(static fn(string $value): string => trim($value));
+    return $this->addNormalizer('trim');
   }
 
   public function toLowerCase(): static {
-    return $this->transform(static fn(string $value): string => mb_strtolower($value));
+    return $this->addNormalizer('lower');
   }
 
   public function toUpperCase(): static {
-    return $this->transform(static fn(string $value): string => mb_strtoupper($value));
+    return $this->addNormalizer('upper');
+  }
+
+  /**
+   * @param 'trim'|'lower'|'upper' $normalizer
+   */
+  private function addNormalizer(string $normalizer): static {
+    $clone = clone $this;
+    $clone->normalizers[] = $normalizer;
+
+    return $clone;
   }
 }

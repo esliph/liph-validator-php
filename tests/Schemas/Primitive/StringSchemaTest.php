@@ -1002,6 +1002,98 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('HELLO123', $result->data);
   }
 
+  public function test_trim_WithWhitespaceOnlyAndMin_ShouldFailTooSmall(): void {
+    $result = (new StringSchema())->trim()->min(1)->safeParse('   ');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_trim_WithPaddedEmail_ShouldValidateTrimmedValue(): void {
+    $result = (new StringSchema())->trim()->email()->safeParse(' a@b.com ');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('a@b.com', $result->data);
+  }
+
+  public function test_toLowerCase_WithLowercaseRule_ShouldNormalizeBeforeRule(): void {
+    $result = (new StringSchema())->toLowerCase()->lowercase()->safeParse('ABC');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('abc', $result->data);
+  }
+
+  public function test_normalizers_InRegistrationOrder_ShouldApplyInOrder(): void {
+    $result = (new StringSchema())->toUpperCase()->toLowerCase()->safeParse('ß');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('ss', $result->data);
+  }
+
+  public function test_trim_WithDefault_ShouldNormalizeDefault(): void {
+    $result = (new StringSchema())->trim()->_default('  X  ')->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('X', $result->data);
+  }
+
+  public function test_trim_WithInvalidTypeClosure_ShouldReceiveOriginalInput(): void {
+    $received = null;
+    $schema = (new StringSchema())->trim()->messages([
+      'invalid_type' => function (mixed $value) use (&$received): string {
+        $received = $value;
+
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse(['  a  ']);
+
+    $this->assertSame(['  a  '], $received);
+  }
+
+  public function test_trim_WithRuleMessageClosure_ShouldReceiveNormalizedValue(): void {
+    $result = (new StringSchema())
+      ->trim()
+      ->min(10, static fn(string $value): string => "got [$value]")
+      ->safeParse('  ab  ');
+
+    $this->assertSame('got [ab]', $result->issues[0]->message);
+  }
+
+  public function test_toLowerCase_WithInvalidUtf8_ShouldKeepStringIntact(): void {
+    $result = (new StringSchema())->toLowerCase()->safeParse("A\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("A\xff", $result->data);
+  }
+
+  public function test_toUpperCase_WithInvalidUtf8_ShouldKeepStringIntact(): void {
+    $result = (new StringSchema())->toUpperCase()->safeParse("a\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("a\xff", $result->data);
+  }
+
+  public function test_trim_AfterTransform_ShouldRunBeforeTransform(): void {
+    $result = (new StringSchema())
+      ->transform(static fn(string $value): string => "[$value]")
+      ->trim()
+      ->safeParse('  a  ');
+
+    $this->assertSame('[a]', $result->data);
+  }
+
+  public function test_trim_ShouldNotModifyOriginalSchema(): void {
+    $original = (new StringSchema())->min(1);
+    $original->trim();
+
+    $result = $original->safeParse('   ');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('   ', $result->data);
+  }
+
   public function test_combined_MinAndMax_ShouldEnforceBounds(): void {
     $schema = (new StringSchema())
       ->min(5)
@@ -1345,7 +1437,8 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse('  TEST STRING  ');
 
-    $this->assertFalse($result->success);
+    $this->assertTrue($result->success);
+    $this->assertSame('test string', $result->data);
 
     $result2 = $schema->safeParse('  test string  ');
 
