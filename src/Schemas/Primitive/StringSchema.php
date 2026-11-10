@@ -62,7 +62,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_small',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) >= $params['length'],
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') >= $params['length'],
       message: $message ?? static fn(string $value, array $params): string => "Must be at least {$params['length']} characters",
       params: ['length' => $length]
     ));
@@ -77,7 +77,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_big',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) <= $params['length'],
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') <= $params['length'],
       message: $message ?? static fn(string $value, array $params): string => "Must be at most {$params['length']} characters",
       params: ['length' => $length]
     ));
@@ -166,7 +166,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'length',
       code: 'invalid_length',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) === $params['length'],
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') === $params['length'],
       message: $message ?? static fn(string $value, array $params): string => "Must be exactly {$params['length']} characters",
       params: ['length' => $length]
     ));

@@ -766,6 +766,42 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertStringContainsString('exactly 5', $result->issues[0]->message);
   }
 
+  public function test_max_WithInvalidUtf8_ShouldFailTooBig(): void {
+    $result = (new StringSchema())->max(3)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_big', $result->issues[0]->code);
+    $this->assertSame('Must be at most 3 characters', $result->issues[0]->message);
+  }
+
+  public function test_min_WithInvalidUtf8_ShouldFailTooSmall(): void {
+    $result = (new StringSchema())->min(1)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_length_WithInvalidUtf8_ShouldFailInvalidLength(): void {
+    $result = (new StringSchema())->length(1)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_length', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithInvalidUtf8AndNoRules_ShouldAccept(): void {
+    $result = (new StringSchema())->safeParse("\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("\xff", $result->data);
+  }
+
+  public function test_max_WithValidMultibyte_ShouldCountCharacters(): void {
+    $schema = (new StringSchema())->max(3);
+
+    $this->assertTrue($schema->safeParse('ção')->success);
+    $this->assertSame('too_big', $schema->safeParse('ççço')->issues[0]->code);
+  }
+
   public function test_lowercase_WithLowercaseString_ShouldPass(): void {
     $schema = (new StringSchema())->lowercase();
 
