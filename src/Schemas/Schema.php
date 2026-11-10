@@ -24,7 +24,9 @@ abstract class Schema {
   protected array $messages = [];
 
   /**
-   * @param string[] $path
+   * @param string[] $path Chaves da raiz até o valor atual; vira o `Issue::$path` de
+   *                       toda issue. `safeParse()` começa com `[]`, e cada schema
+   *                       composto acrescenta a chave do filho ao chamá-lo.
    */
   protected function _parse(mixed $value, array $path = []): ParseResult {
     $input = $value;

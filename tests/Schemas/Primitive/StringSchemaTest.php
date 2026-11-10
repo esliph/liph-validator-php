@@ -912,6 +912,24 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame($customMessage, $result->issues[0]->message);
   }
 
+  public function test_lowercase_WithInvalidUtf8_ShouldFailInvalidCase(): void {
+    $result = (new StringSchema())->lowercase()->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_case', $result->issues[0]->code);
+  }
+
+  public function test_uppercase_WithInvalidUtf8_ShouldFailInvalidCase(): void {
+    $result = (new StringSchema())->uppercase()->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_case', $result->issues[0]->code);
+  }
+
+  public function test_nonempty_WithInvalidUtf8_ShouldPass(): void {
+    $this->assertTrue((new StringSchema())->nonempty()->safeParse("\xff")->success);
+  }
+
   public function test_trim_WithLeadingWhitespace_ShouldRemove(): void {
     $schema = (new StringSchema())->trim();
 

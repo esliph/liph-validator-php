@@ -122,7 +122,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'nonempty',
       code: 'too_small',
-      check: static fn(string $value): bool => mb_strlen($value) > 0,
+      check: static fn(string $value): bool => $value !== '',
       message: $message ?? 'String must not be empty'
     ));
   }
@@ -173,10 +173,11 @@ final class StringSchema extends CoercibleSchema {
   }
 
   public function lowercase(string|Closure|null $message = null): static {
+    // UTF-8 inválido já falha: o mbstring troca os bytes inválidos, e a comparação não bate.
     return $this->addRule(new Rule(
       name: 'lowercase',
       code: 'invalid_case',
-      check: static fn(string $value): bool => mb_strtolower($value) === $value,
+      check: static fn(string $value): bool => mb_strtolower($value, 'UTF-8') === $value,
       message: $message ?? 'Must be all lowercase'
     ));
   }
@@ -185,7 +186,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'uppercase',
       code: 'invalid_case',
-      check: static fn(string $value): bool => mb_strtoupper($value) === $value,
+      check: static fn(string $value): bool => mb_strtoupper($value, 'UTF-8') === $value,
       message: $message ?? 'Must be all uppercase'
     ));
   }
