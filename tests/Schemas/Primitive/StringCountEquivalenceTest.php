@@ -10,7 +10,7 @@ use Esliph\Validator\V;
 
 /**
  * O oráculo é o mbstring: `mb_check_encoding` mais `mb_strlen`, que é como o
- * StringSchema contava antes de qualquer atalho por bytes.
+ * StringSchema conta; um atalho por bytes precisa dar o mesmo resultado.
  */
 class StringCountEquivalenceTest extends TestCase {
 

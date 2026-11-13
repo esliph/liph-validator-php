@@ -10,8 +10,8 @@ use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
 
 /**
- * O oráculo são as regexes que a coerção numérica usava até 2026-11, copiadas aqui
- * para sobreviver à troca delas no src/.
+ * O oráculo são as regexes `INT_PATTERN` e `FLOAT_PATTERN` do NumberSchema, copiadas aqui:
+ * uma troca da coerção no src/ é comparada contra elas.
  */
 class NumericCoercionEquivalenceTest extends TestCase {
 
