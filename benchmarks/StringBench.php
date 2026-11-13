@@ -17,6 +17,8 @@ use PhpBench\Attributes as Bench;
  * scenario guard, because no single expectation holds on both versions.
  *
  * The Uuid subjects only exist on the new code (no baseline).
+ *
+ * `Max255Short` and `CountLong` measure the cost of the count calls per parse.
  */
 #[Bench\Revs(1000)]
 final class StringBench {
@@ -59,6 +61,20 @@ final class StringBench {
   public function setUpCountInvalidUtf8(): void {
     $this->schema = V::string()->min(1)->max(100);
     $this->input = self::INVALID_UTF8;
+  }
+
+  public function setUpMax255Short(): void {
+    $this->schema = V::string()->max(255);
+    $this->input = 'hello';
+
+    Scenario::expectSuccess($this->schema, $this->input);
+  }
+
+  public function setUpCountLong(): void {
+    $this->schema = V::string()->min(1)->max(1000);
+    $this->input = str_repeat('ação ', 146);
+
+    Scenario::expectSuccess($this->schema, $this->input);
   }
 
   public function setUpLowercase(): void {
@@ -104,6 +120,16 @@ final class StringBench {
 
   #[Bench\BeforeMethods('setUpCountInvalidUtf8')]
   public function benchCountInvalidUtf8(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpMax255Short')]
+  public function benchMax255Short(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpCountLong')]
+  public function benchCountLong(): void {
     $this->schema->safeParse($this->input);
   }
 
