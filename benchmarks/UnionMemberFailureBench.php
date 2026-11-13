@@ -16,6 +16,9 @@ use PhpBench\Attributes as Bench;
  *   `invalid_union`, so all the member issues are thrown away.
  * - `AllFailWithClosureMessage`: the same with a Closure message on each member,
  *   the path that needs the params and must not get slower.
+ * - `AllFailWithStringMessage`: the same with a literal string message on each
+ *   member. `AllFail` minus this one isolates the `get_debug_type` call and the
+ *   concatenation of the default text.
  */
 final class UnionMemberFailureBench {
 
@@ -31,6 +34,15 @@ final class UnionMemberFailureBench {
 
   public function setUpAllFail(): void {
     $this->schema = V::union(V::string(), V::int());
+    $this->input = [];
+
+    Scenario::expectIssues($this->schema, $this->input, 1);
+  }
+
+  public function setUpAllFailWithStringMessage(): void {
+    $messages = ['invalid_type' => 'bad'];
+
+    $this->schema = V::union(V::string()->messages($messages), V::int()->messages($messages));
     $this->input = [];
 
     Scenario::expectIssues($this->schema, $this->input, 1);
@@ -52,6 +64,11 @@ final class UnionMemberFailureBench {
 
   #[Bench\BeforeMethods('setUpAllFail')]
   public function benchAllFail(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpAllFailWithStringMessage')]
+  public function benchAllFailWithStringMessage(): void {
     $this->schema->safeParse($this->input);
   }
 
