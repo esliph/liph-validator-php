@@ -53,7 +53,8 @@ final class ArraySchema extends CoercibleSchema {
         $result = $this->elementSchema->_parse($item, $itemPath);
 
         if (!$result->success) {
-          $issues = array_merge($issues, $result->issues);
+          // Sem array_merge: ele copia a lista acumulada a cada filho e fica quadrático no total de issues.
+          array_push($issues, ...$result->issues);
         } else {
           $parsedValue[] = $result->data;
         }

@@ -88,7 +88,8 @@ final class ObjectSchema extends CoercibleSchema {
       $result = $schema->_parse($exists ? $props[$key] : null, array_merge($path, [$key]));
 
       if (!$result->success) {
-        $issues = array_merge($issues, $result->issues);
+        // Sem array_merge: ele copia a lista acumulada a cada filho e fica quadrático no total de issues.
+        array_push($issues, ...$result->issues);
       } elseif ($exists || $result->data !== null) {
         $parsedValue->$key = $result->data;
       }
@@ -110,7 +111,7 @@ final class ObjectSchema extends CoercibleSchema {
           $result = $this->catchall->_parse($val, $fieldPath);
 
           if (!$result->success) {
-            $issues = array_merge($issues, $result->issues);
+            array_push($issues, ...$result->issues);
           } else {
             $parsedValue->$key = $result->data;
           }
