@@ -34,6 +34,20 @@ final class CoercionBench {
     Scenario::expectIssues($this->schema, $this->input, 1);
   }
 
+  public function setUpIntNegative(): void {
+    $this->schema = V::int()->coerce();
+    $this->input = '-42';
+
+    Scenario::expectSuccess($this->schema, $this->input);
+  }
+
+  public function setUpIntGarbage(): void {
+    $this->schema = V::int()->coerce();
+    $this->input = '12abc';
+
+    Scenario::expectIssues($this->schema, $this->input, 1);
+  }
+
   public function setUpFloatValid(): void {
     $this->schema = V::float()->coerce();
     $this->input = '3.14159';
@@ -44,6 +58,13 @@ final class CoercionBench {
   public function setUpFloatInvalid(): void {
     $this->schema = V::float()->coerce();
     $this->input = 'abc';
+
+    Scenario::expectIssues($this->schema, $this->input, 1);
+  }
+
+  public function setUpFloatGarbage(): void {
+    $this->schema = V::float()->coerce();
+    $this->input = '12abc';
 
     Scenario::expectIssues($this->schema, $this->input, 1);
   }
@@ -100,6 +121,16 @@ final class CoercionBench {
     $this->schema->safeParse($this->input);
   }
 
+  #[Bench\BeforeMethods('setUpIntNegative')]
+  public function benchIntNegative(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpIntGarbage')]
+  public function benchIntGarbage(): void {
+    $this->schema->safeParse($this->input);
+  }
+
   #[Bench\BeforeMethods('setUpFloatValid')]
   public function benchFloatValid(): void {
     $this->schema->safeParse($this->input);
@@ -107,6 +138,11 @@ final class CoercionBench {
 
   #[Bench\BeforeMethods('setUpFloatInvalid')]
   public function benchFloatInvalid(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpFloatGarbage')]
+  public function benchFloatGarbage(): void {
     $this->schema->safeParse($this->input);
   }
 
