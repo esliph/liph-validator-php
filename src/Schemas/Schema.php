@@ -64,6 +64,11 @@ abstract class Schema {
       return ParseResult::dirty($issues);
     }
 
+    // As regras não mudam o valor: sem transform, o ok do validateType já é o resultado final.
+    if ($this->transforms === []) {
+      return $childResult;
+    }
+
     $value = $this->applyTransforms($value);
 
     return ParseResult::ok($value);
