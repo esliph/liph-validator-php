@@ -778,4 +778,12 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result2->success);
   }
+
+  public function test_min_WithFloatBound_ShouldFormatBoundInDefaultMessage(): void {
+    $schema = $this->createNumberSchema()->min(0.1);
+
+    $result = $schema->safeParse(0);
+
+    $this->assertSame('Must be greater than or equal to 0.1', $result->issues[0]->message);
+  }
 }

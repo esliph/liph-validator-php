@@ -1121,4 +1121,18 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('invalid_date', $result->issues[0]->code);
     $this->assertSame('Invalid date string', $result->issues[0]->message);
   }
+
+  public function test_min_WithClosureMessage_ShouldReceiveValueAndParams(): void {
+    $received = [];
+    $schema = (new DateSchema())->min(self::utc('2024-01-01'), function (mixed $value, array $params) use (&$received): string {
+      $received = [$value, $params];
+
+      return 'too early';
+    });
+    $input = self::utc('2023-12-31');
+
+    $schema->safeParse($input);
+
+    $this->assertEquals([$input, ['min' => self::utc('2024-01-01')]], $received);
+  }
 }
