@@ -15,6 +15,8 @@ use PhpBench\Attributes as Bench;
  * except `CountInvalidUtf8`: the old count rules counted the invalid bytes and
  * passed, the new ones fail `min` and `max` (2 issues). That subject has no
  * scenario guard, because no single expectation holds on both versions.
+ *
+ * The Uuid subjects only exist on the new code (no baseline).
  */
 #[Bench\Revs(1000)]
 final class StringBench {
@@ -66,6 +68,20 @@ final class StringBench {
     Scenario::expectSuccess($this->schema, $this->input);
   }
 
+  public function setUpUuidValid(): void {
+    $this->schema = V::string()->uuid();
+    $this->input = '123e4567-e89b-12d3-a456-426614174000';
+
+    Scenario::expectSuccess($this->schema, $this->input);
+  }
+
+  public function setUpUuidInvalid(): void {
+    $this->schema = V::string()->uuid();
+    $this->input = '123e4567-e89b-12d3-a456-42661417400g';
+
+    Scenario::expectIssues($this->schema, $this->input, 1);
+  }
+
   #[Bench\BeforeMethods('setUpPlain')]
   public function benchPlain(): void {
     $this->schema->safeParse($this->input);
@@ -93,6 +109,16 @@ final class StringBench {
 
   #[Bench\BeforeMethods('setUpLowercase')]
   public function benchLowercase(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpUuidValid')]
+  public function benchUuidValid(): void {
+    $this->schema->safeParse($this->input);
+  }
+
+  #[Bench\BeforeMethods('setUpUuidInvalid')]
+  public function benchUuidInvalid(): void {
     $this->schema->safeParse($this->input);
   }
 }
