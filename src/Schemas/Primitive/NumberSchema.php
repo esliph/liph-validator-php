@@ -98,7 +98,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'min',
       code: 'too_small',
       check: static fn(int|float $value, array $params): bool => $value >= $params['min'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be greater than or equal to {$params['min']}",
+      message: $message ?? "Must be greater than or equal to {$min}",
       params: ['min' => $min]
     ));
   }
@@ -113,7 +113,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'max',
       code: 'too_big',
       check: static fn(int|float $value, array $params): bool => $value <= $params['max'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be less than or equal to {$params['max']}",
+      message: $message ?? "Must be less than or equal to {$max}",
       params: ['max' => $max]
     ));
   }
@@ -128,7 +128,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'gt',
       code: 'too_small',
       check: static fn(int|float $value, array $params): bool => $value > $params['min'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be greater than {$params['min']}",
+      message: $message ?? "Must be greater than {$min}",
       params: ['min' => $min]
     ));
   }
@@ -143,7 +143,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'gte',
       code: 'too_small',
       check: static fn(int|float $value, array $params): bool => $value >= $params['min'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be greater than or equal to {$params['min']}",
+      message: $message ?? "Must be greater than or equal to {$min}",
       params: ['min' => $min]
     ));
   }
@@ -158,7 +158,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'lt',
       code: 'too_big',
       check: static fn(int|float $value, array $params): bool => $value < $params['max'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be less than {$params['max']}",
+      message: $message ?? "Must be less than {$max}",
       params: ['max' => $max]
     ));
   }
@@ -173,7 +173,7 @@ class NumberSchema extends CoercibleSchema {
       name: 'lte',
       code: 'too_big',
       check: static fn(int|float $value, array $params): bool => $value <= $params['max'],
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be less than or equal to {$params['max']}",
+      message: $message ?? "Must be less than or equal to {$max}",
       params: ['max' => $max]
     ));
   }
@@ -233,7 +233,7 @@ class NumberSchema extends CoercibleSchema {
     }
 
     $params = ['min' => $min, 'max' => $max];
-    $message ??= static fn(int|float $value, array $params): string => "Must be between {$params['min']} and {$params['max']}";
+    $message ??= "Must be between {$min} and {$max}";
 
     return $this
       ->addRule(new Rule(
@@ -289,7 +289,7 @@ class NumberSchema extends CoercibleSchema {
 
         return abs($quotient - round($quotient)) < self::MULTIPLE_OF_TOLERANCE;
       },
-      message: $message ?? static fn(int|float $value, array $params): string => "Must be a multiple of {$params['divisor']}",
+      message: $message ?? "Must be a multiple of {$divisor}",
       params: ['divisor' => $divisor]
     ));
   }

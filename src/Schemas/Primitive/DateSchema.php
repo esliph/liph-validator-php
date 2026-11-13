@@ -96,12 +96,14 @@ final class DateSchema extends CoercibleSchema {
    * Limite inclusivo (>=), como `NumberSchema::min`; `after` é o estrito.
    */
   public function min(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
+    $minDate = $this->normalizeDate($min);
+
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_early',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value >= $params['min'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be on or after {$params['min']->format(DateTimeInterface::ATOM)}",
-      params: ['min' => $this->normalizeDate($min)]
+      message: $message ?? "Must be on or after {$minDate->format(DateTimeInterface::ATOM)}",
+      params: ['min' => $minDate]
     ));
   }
 
@@ -109,12 +111,14 @@ final class DateSchema extends CoercibleSchema {
    * Limite inclusivo (<=), como `NumberSchema::max`; `before` é o estrito.
    */
   public function max(DateTimeInterface|string|int $max, string|Closure|null $message = null): static {
+    $maxDate = $this->normalizeDate($max);
+
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_late',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value <= $params['max'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be on or before {$params['max']->format(DateTimeInterface::ATOM)}",
-      params: ['max' => $this->normalizeDate($max)]
+      message: $message ?? "Must be on or before {$maxDate->format(DateTimeInterface::ATOM)}",
+      params: ['max' => $maxDate]
     ));
   }
 
@@ -125,7 +129,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'after',
       code: 'too_early',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value > $params['min'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be after {$params['min']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be after {$minDate->format(DateTimeInterface::ATOM)}",
       params: ['min' => $minDate]
     ));
   }
@@ -137,7 +141,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'before',
       code: 'too_late',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value < $params['max'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be before {$params['max']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be before {$maxDate->format(DateTimeInterface::ATOM)}",
       params: ['max' => $maxDate]
     ));
   }
@@ -150,7 +154,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'between',
       code: 'out_of_range',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value >= $params['min'] && $value <= $params['max'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be between {$params['min']->format(DateTimeInterface::ATOM)} and {$params['max']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be between {$minDate->format(DateTimeInterface::ATOM)} and {$maxDate->format(DateTimeInterface::ATOM)}",
       params: ['min' => $minDate, 'max' => $maxDate]
     ));
   }

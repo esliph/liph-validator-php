@@ -91,7 +91,7 @@ final class ArraySchema extends CoercibleSchema {
       name: 'length',
       code: 'invalid_length',
       check: static fn(array $value, array $params): bool => count($value) === $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have exactly {$params['length']} elements",
+      message: $message ?? "Array must have exactly {$length} elements",
       params: ['length' => $length]
     ));
   }
@@ -106,7 +106,7 @@ final class ArraySchema extends CoercibleSchema {
       name: 'min',
       code: 'too_small',
       check: static fn(array $value, array $params): bool => count($value) >= $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have at least {$params['length']} elements",
+      message: $message ?? "Array must have at least {$length} elements",
       params: ['length' => $length]
     ));
   }
@@ -121,7 +121,7 @@ final class ArraySchema extends CoercibleSchema {
       name: 'max',
       code: 'too_big',
       check: static fn(array $value, array $params): bool => count($value) <= $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have at most {$params['length']} elements",
+      message: $message ?? "Array must have at most {$length} elements",
       params: ['length' => $length]
     ));
   }

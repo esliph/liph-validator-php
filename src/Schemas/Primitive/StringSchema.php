@@ -63,7 +63,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'min',
       code: 'too_small',
       check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') >= $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be at least {$params['length']} characters",
+      message: $message ?? "Must be at least {$length} characters",
       params: ['length' => $length]
     ));
   }
@@ -78,7 +78,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'max',
       code: 'too_big',
       check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') <= $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be at most {$params['length']} characters",
+      message: $message ?? "Must be at most {$length} characters",
       params: ['length' => $length]
     ));
   }
@@ -144,7 +144,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'startsWith',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_starts_with($value, $params['prefix']),
-      message: $message ?? static fn(string $value, array $params): string => "Must start with '{$params['prefix']}'",
+      message: $message ?? "Must start with '{$prefix}'",
       params: ['prefix' => $prefix]
     ));
   }
@@ -154,7 +154,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'endsWith',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_ends_with($value, $params['suffix']),
-      message: $message ?? static fn(string $value, array $params): string => "Must end with '{$params['suffix']}'",
+      message: $message ?? "Must end with '{$suffix}'",
       params: ['suffix' => $suffix]
     ));
   }
@@ -164,7 +164,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'includes',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_contains($value, $params['substring']),
-      message: $message ?? static fn(string $value, array $params): string => "Must include '{$params['substring']}'",
+      message: $message ?? "Must include '{$substring}'",
       params: ['substring' => $substring]
     ));
   }
@@ -179,7 +179,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'length',
       code: 'invalid_length',
       check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') === $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be exactly {$params['length']} characters",
+      message: $message ?? "Must be exactly {$length} characters",
       params: ['length' => $length]
     ));
   }
