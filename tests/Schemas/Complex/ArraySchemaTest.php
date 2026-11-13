@@ -520,6 +520,17 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['users', 1, 'email'], $result->issues[0]->path);
   }
 
+  public function test_validateType_WithSeveralElementsFailingSeveralRules_ShouldKeepElementThenRuleOrder(): void {
+    $schema = new ArraySchema((new StringSchema())->min(3)->email());
+
+    $result = $schema->safeParse(['a', 'ok@mail.com', 'b']);
+
+    $this->assertSame(
+      [[[0], 'too_small'], [[0], 'invalid_format'], [[2], 'too_small'], [[2], 'invalid_format']],
+      array_map(static fn($issue): array => [$issue->path, $issue->code], $result->issues)
+    );
+  }
+
   public function test_validateType_WithArrayOfObjects_ShouldReturnParsedObjects(): void {
     $schema = new ArraySchema(new ObjectSchema([
       'name' => (new StringSchema())->transform(fn(string $v): string => strtoupper($v)),

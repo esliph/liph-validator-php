@@ -365,6 +365,21 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['email'], $result->issues[1]->path);
   }
 
+  public function test_validateType_WithSeveralFieldsFailingSeveralRules_ShouldKeepShapeThenRuleOrder(): void {
+    $schema = new ObjectSchema([
+      'a' => (new StringSchema())->min(3)->email(),
+      'b' => new IntegerSchema(),
+      'c' => (new StringSchema())->min(3)->email(),
+    ]);
+
+    $result = $schema->safeParse((object) ['c' => 'x', 'b' => 'y', 'a' => 'z']);
+
+    $this->assertSame(
+      [[['a'], 'too_small'], [['a'], 'invalid_format'], [['b'], 'invalid_type'], [['c'], 'too_small'], [['c'], 'invalid_format']],
+      array_map(static fn($issue): array => [$issue->path, $issue->code], $result->issues)
+    );
+  }
+
   public function test_validateType_WithNestedInvalidField_ShouldReportFullPath(): void {
     $schema = new ObjectSchema([
       'address' => new ObjectSchema([
@@ -868,6 +883,17 @@ class ObjectSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame(['name'], $result->issues[0]->path);
     $this->assertSame(['a'], $result->issues[1]->path);
     $this->assertSame(['b'], $result->issues[2]->path);
+  }
+
+  public function test_catchall_WithSeveralUnknownKeysFailingSeveralRules_ShouldKeepInputThenRuleOrder(): void {
+    $schema = (new ObjectSchema(['name' => new StringSchema()]))->catchall((new StringSchema())->min(3)->email());
+
+    $result = $schema->safeParse((object) ['name' => 'Dan', 'x' => 'a', 'y' => 'b']);
+
+    $this->assertSame(
+      [[['x'], 'too_small'], [['x'], 'invalid_format'], [['y'], 'too_small'], [['y'], 'invalid_format']],
+      array_map(static fn($issue): array => [$issue->path, $issue->code], $result->issues)
+    );
   }
 
   public function test_catchall_ShouldNotApplyToKnownKeys(): void {
