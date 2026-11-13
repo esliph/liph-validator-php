@@ -94,6 +94,10 @@ abstract class Schema {
   abstract protected function parseType(mixed $value, array $path, mixed $input): ParseResult;
 
   /**
+   * Gancho entre a checagem de tipo e as regras; a saída alimenta as regras.
+   * Os compostos validam os filhos aqui, e o String aplica os normalizadores.
+   * Uma falha vira `dirty`.
+   *
    * @param string[] $path
    */
   protected function validateType(mixed $value, array $path = []): ParseResult {
