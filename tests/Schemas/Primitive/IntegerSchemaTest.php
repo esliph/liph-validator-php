@@ -2,6 +2,7 @@
 
 namespace Esliph\Validator\Tests\Schemas\Primitive;
 
+use ErrorException;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -500,6 +501,20 @@ class IntegerSchemaTest extends NumberSchemaTestCase {
 
   public function test_coerce_WithShortInvalidString_ShouldFailWithoutRangeText(): void {
     $result = (new IntegerSchema())->coerce()->safeParse('abc');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected int, received string', $result->issues[0]->message);
+  }
+
+  public function test_coerce_WithLongBlankDefault_ShouldFailWithoutRangeText(): void {
+    $schema = (new IntegerSchema())->coerce()->_default(str_repeat(' ', 19));
+    set_error_handler(static fn(int $errno, string $errstr): never => throw new ErrorException($errstr, 0, $errno));
+
+    try {
+      $result = $schema->safeParse(null);
+    } finally {
+      restore_error_handler();
+    }
 
     $this->assertFalse($result->success);
     $this->assertSame('Expected int, received string', $result->issues[0]->message);
