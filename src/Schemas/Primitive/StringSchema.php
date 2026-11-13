@@ -102,6 +102,18 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
+   * Formato 8-4-4-4-12 em hexa, sem conferir versão nem variante (aceita o nil).
+   */
+  public function uuid(string|Closure|null $message = null): static {
+    return $this->addRule(new Rule(
+      name: 'uuid',
+      code: 'invalid_format',
+      check: static fn(string $value): bool => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $value) === 1,
+      message: $message ?? 'Invalid UUID'
+    ));
+  }
+
+  /**
    * @throws InvalidArgumentException se o pattern não compilar (inclusive sem delimitadores)
    */
   public function regex(string $pattern, string|Closure|null $message = null): static {

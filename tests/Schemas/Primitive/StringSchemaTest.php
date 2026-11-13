@@ -713,6 +713,58 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertStringContainsString("'substring'", $result->issues[0]->message);
   }
 
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideValidUuids(): array {
+    return [
+      'lowercase' => ['123e4567-e89b-12d3-a456-426614174000'],
+      'uppercase' => ['123E4567-E89B-12D3-A456-426614174000'],
+      'nil' => ['00000000-0000-0000-0000-000000000000'],
+    ];
+  }
+
+  #[DataProvider('provideValidUuids')]
+  public function test_uuid_WithValidUuid_ShouldPass(string $uuid): void {
+    $result = (new StringSchema())->uuid()->safeParse($uuid);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($uuid, $result->data);
+  }
+
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideInvalidUuids(): array {
+    return [
+      'without hyphens' => ['123e4567e89b12d3a456426614174000'],
+      'one extra character' => ['123e4567-e89b-12d3-a456-4266141740000'],
+      'trailing newline' => ["123e4567-e89b-12d3-a456-426614174000\n"],
+      'non-hex character' => ['123e4567-e89b-12d3-a456-42661417400g'],
+    ];
+  }
+
+  #[DataProvider('provideInvalidUuids')]
+  public function test_uuid_WithInvalidUuid_ShouldFailInvalidFormat(string $uuid): void {
+    $result = (new StringSchema())->uuid()->safeParse($uuid);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_format', $result->issues[0]->code);
+    $this->assertSame('Invalid UUID', $result->issues[0]->message);
+  }
+
+  public function test_uuid_WithCustomMessage_ShouldUseCustomMessage(): void {
+    $result = (new StringSchema())->uuid('UUID inválido')->safeParse('x');
+
+    $this->assertSame('UUID inválido', $result->issues[0]->message);
+  }
+
+  public function test_uuid_WithClosureMessage_ShouldReceiveValue(): void {
+    $result = (new StringSchema())->uuid(static fn(string $value): string => "bad: $value")->safeParse('x');
+
+    $this->assertSame('bad: x', $result->issues[0]->message);
+  }
+
   public function test_length_WithExactLength_ShouldPass(): void {
     $schema = (new StringSchema())->length(5);
 
