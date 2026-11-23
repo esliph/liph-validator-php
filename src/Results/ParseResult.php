@@ -13,7 +13,7 @@ readonly final class ParseResult {
     public bool $success,
     public mixed $data = null,
     public array $issues = [],
-    /** @internal Verdadeiro quando a falha aconteceu depois da checagem de tipo. */
+    /** @internal True when the failure happened after the type check. */
     public bool $dirty = false
   ) {
   }

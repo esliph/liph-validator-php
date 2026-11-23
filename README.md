@@ -106,7 +106,7 @@ echo V::date()->coerce()->parse('2024-01-15')->format('Y-m-d'), "\n"; // prints:
 echo json_encode(V::_array(V::int())->coerce()->parse('[1,2]')), "\n"; // prints: [1,2]
 ```
 
-`coerce()` converts strings that carry another type, such as form fields and query parameters, before validating. A value that cannot be converted fails with the usual `invalid_type` issue.
+`coerce()` converts strings that carry another type, such as form fields and query parameters, before validating. A value that cannot be converted fails with an `invalid_type` issue (`invalid_date` for dates).
 
 ## Custom rules and transforms
 
