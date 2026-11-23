@@ -12,7 +12,13 @@ use Esliph\Validator\Schemas\Primitive\NumberSchema;
 use Esliph\Validator\Schemas\Primitive\FloatSchema;
 use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\MixedSchema;
+use Esliph\Validator\Schemas\NullSchema;
+use Esliph\Validator\Schemas\LiteralSchema;
+use Esliph\Validator\Schemas\EnumSchema;
 use Esliph\Validator\Schemas\Schema;
+use BackedEnum;
+use InvalidArgumentException;
+use UnitEnum;
 
 final class V {
 
@@ -44,20 +50,37 @@ final class V {
     return new MixedSchema();
   }
 
+  public static function null(): NullSchema {
+    return new NullSchema();
+  }
+
+  public static function literal(string|int|float|bool|null|UnitEnum $value): LiteralSchema {
+    return new LiteralSchema($value);
+  }
+
   /**
-   * @param array<string, Schema> $shape
+   * @param list<string|int|float|bool>|array<string|int|float|bool>|class-string<BackedEnum> $values
+   */
+  public static function enum(array|string $values): EnumSchema {
+    return new EnumSchema($values);
+  }
+
+  /**
+   * @param array<string|int, Schema> $shape
+   *
+   * @throws InvalidArgumentException if any shape value is not a Schema
    */
   public static function object(array $shape = []): ObjectSchema {
     return new ObjectSchema(shape: $shape);
   }
 
-  /**
-   * @param Schema|null $schema
-   */
   public static function _array(?Schema $schema = null): ArraySchema {
     return new ArraySchema(elementSchema: $schema);
   }
 
+  /**
+   * @throws InvalidArgumentException with fewer than 2 options
+   */
   public static function union(Schema ...$schemas): UnionSchema {
     return new UnionSchema(schemas: $schemas);
   }

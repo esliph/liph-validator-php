@@ -4,10 +4,10 @@ namespace Esliph\Validator\Schemas\Complex;
 
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 final class ArraySchema extends CoercibleSchema {
@@ -17,45 +17,27 @@ final class ArraySchema extends CoercibleSchema {
   ) {
   }
 
-  public function __clone(): void {
-    parent::__clone();
-
-    if ($this->elementSchema !== null) {
-      $this->elementSchema = clone $this->elementSchema;
+  #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
     }
+
+    if (is_string($value)) {
+      return self::decodeJson($value, '[');
+    }
+
+    return $value;
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    if ($this->coerce && is_string($value)) {
-      try {
-        $decoded = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
-
-        if (is_array($decoded)) {
-          return ParseResult::ok($decoded);
-        }
-      } catch (\Exception) {
-      }
-    }
-
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (!is_array($value)) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected array, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
+      return ParseResult::fail($this->typeIssue('array', $input, $path));
     }
 
     if ($this->isAssociativeArray($value)) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected indexed array, received object',
-          code: 'invalid_type'
-        )
-      );
+      return ParseResult::fail($this->typeIssue('list', $input, $path, 'associative array'));
     }
 
     return ParseResult::ok($value);
@@ -71,7 +53,8 @@ final class ArraySchema extends CoercibleSchema {
         $result = $this->elementSchema->_parse($item, $itemPath);
 
         if (!$result->success) {
-          $issues = array_merge($issues, $result->issues);
+          // No array_merge: it copies the accumulated list for every child and becomes quadratic in the total number of issues.
+          array_push($issues, ...$result->issues);
         } else {
           $parsedValue[] = $result->data;
         }
@@ -87,6 +70,10 @@ final class ArraySchema extends CoercibleSchema {
     return ParseResult::ok($parsedValue);
   }
 
+  public function getItem(): ?Schema {
+    return $this->elementSchema;
+  }
+
   public function of(Schema $schema): static {
     $clone = clone $this;
     $clone->elementSchema = $schema;
@@ -94,32 +81,47 @@ final class ArraySchema extends CoercibleSchema {
     return $clone;
   }
 
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function length(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'length');
+
     return $this->addRule(new Rule(
       name: 'length',
-      code: 'invalid_type',
+      code: 'invalid_length',
       check: static fn(array $value, array $params): bool => count($value) === $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have exactly {$params['length']} elements",
+      message: $message ?? "Array must have exactly {$length} elements",
       params: ['length' => $length]
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function min(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'min');
+
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_small',
       check: static fn(array $value, array $params): bool => count($value) >= $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have at least {$params['length']} elements",
+      message: $message ?? "Array must have at least {$length} elements",
       params: ['length' => $length]
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function max(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'max');
+
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_big',
       check: static fn(array $value, array $params): bool => count($value) <= $params['length'],
-      message: $message ?? static fn(array $value, array $params): string => "Array must have at most {$params['length']} elements",
+      message: $message ?? "Array must have at most {$length} elements",
       params: ['length' => $length]
     ));
   }

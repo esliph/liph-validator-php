@@ -12,7 +12,9 @@ readonly final class ParseResult {
   private function __construct(
     public bool $success,
     public mixed $data = null,
-    public array $issues = []
+    public array $issues = [],
+    /** @internal True when the failure happened after the type check. */
+    public bool $dirty = false
   ) {
   }
 
@@ -37,6 +39,21 @@ readonly final class ParseResult {
     return new self(
       success: false,
       issues: $issues
+    );
+  }
+
+  /**
+   * Failure after the type check (rules or children). The union uses
+   * the flag to report the option that recognized the value's type.
+   *
+   * @internal
+   * @param Issue[] $issues
+   */
+  public static function dirty(array $issues): self {
+    return new self(
+      success: false,
+      issues: $issues,
+      dirty: true
     );
   }
 }

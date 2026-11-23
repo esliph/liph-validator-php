@@ -1,0 +1,229 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method Esliph\\Validator\\Schemas\\Schema\:\:isAssociativeArray\(\) has parameter \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Schemas/Schema.php
+
+		-
+			message: '#^PHPDoc tag @var has invalid value \(Closure\(mixed\)\[\]\)\: Unexpected token "\(", expected TOKEN_HORIZONTAL_WS at offset 16 on line 1$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: src/Schemas/Schema.php
+
+		-
+			message: '#^Property Esliph\\Validator\\Schemas\\Schema\:\:\$transforms type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Schemas/Schema.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: src/Validation/Rule.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Validation\\Rule\:\:__construct\(\) has parameter \$check with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/Rule.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Validation\\Rule\:\:__construct\(\) has parameter \$message with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/Rule.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Validation\\Rule\:\:__construct\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Validation/Rule.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Errors\\Issue and ''code'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/IssueTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Errors\\Issue and ''message'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/IssueTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Errors\\Issue and ''path'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/IssueTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<string\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/IssueTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsString\(\) with string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Errors/IssueTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<Esliph\\Validator\\Errors\\Issue\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<int, array\{code\: string, message\: string, path\: array\<string\>\}\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<string, array\<Esliph\\Validator\\Errors\\Issue\>\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<string, array\<string\>\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<string, string\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsInt\(\) with int will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsString\(\) with string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Parameter \#1 \$path of class Esliph\\Validator\\Errors\\Issue constructor expects array\<string\>, array\<int, int\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Errors/ValidatorExceptionTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Results\\ParseResult and ''data'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Results/ParseResultTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Results\\ParseResult and ''issues'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Results/ParseResultTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Results\\ParseResult and ''success'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Results/ParseResultTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array\<Esliph\\Validator\\Errors\\Issue\> will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/Results/ParseResultTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsBool\(\) with bool will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Results/ParseResultTest.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Tests\\Schemas\\BaseSchemaTestCase\:\:provideAllInputTypes\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Schemas/BaseSchemaTestCase.php
+
+		-
+			message: '#^Cannot access property \$path on Esliph\\Validator\\Errors\\Issue\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Schemas/Complex/ObjectSchemaTest.php
+
+		-
+			message: '#^Property class@anonymous/tests/Schemas/Complex/ObjectSchemaTest\.php\:144\:\:\$secret is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/Schemas/Complex/ObjectSchemaTest.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Schemas/SchemaTest.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Tests\\Schemas\\TestSchema\:\:__construct\(\) has parameter \$checkType with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Schemas/SchemaTest.php
+
+		-
+			message: '#^Method Esliph\\Validator\\Tests\\Schemas\\TestSchema\:\:__construct\(\) has parameter \$checkValid with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Schemas/SchemaTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Validation\\Rule and ''check'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Validation\\Rule and ''code'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Validation\\Rule and ''message'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Validation\\Rule and ''name'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Call to function property_exists\(\) with Esliph\\Validator\\Validation\\Rule and ''params'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsArray\(\) with array will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Validation/RuleTest.php
+
+		-
+			message: '#^Parameter \$message of class Esliph\\Validator\\Validation\\Rule constructor expects \(Closure\(mixed, array\)\: string\)\|string\|null, Closure\(mixed, array\)\: null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Validation/RuleTest.php

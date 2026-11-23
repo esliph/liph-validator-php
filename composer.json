@@ -1,8 +1,9 @@
 {
   "name": "esliph/validator",
-  "description": "Uma biblioteca de validação de dados inspirada no Zod para PHP",
+  "description": "A Zod-inspired data validation library for PHP",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://github.com/esliph/liph-validator-php",
   "keywords": [
     "validation",
     "schema",
@@ -14,10 +15,19 @@
       "email": "danrsaquetti@gmail.com"
     }
   ],
+  "support": {
+    "issues": "https://github.com/esliph/liph-validator-php/issues",
+    "source": "https://github.com/esliph/liph-validator-php"
+  },
   "scripts": {
     "test": "vendor/bin/phpunit",
+    "analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
     "test:coverage": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-text",
-    "test:coverage:html": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-html cache/tests/coverage --coverage-text"
+    "test:coverage:html": "php -d pcov.enabled=1 vendor/bin/phpunit --coverage-html cache/tests/coverage --coverage-text",
+    "bench": [
+      "Composer\\Config::disableProcessTimeout",
+      "vendor/bin/phpbench run --report=aggregate"
+    ]
   },
   "autoload": {
     "psr-4": {
@@ -26,14 +36,20 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Esliph\\Validator\\Tests\\": "tests/"
+      "Esliph\\Validator\\Tests\\": "tests/",
+      "Esliph\\Validator\\Benchmarks\\": "benchmarks/"
     }
   },
   "require": {
-    "php": ">=8.2"
+    "php": ">=8.3"
   },
   "require-dev": {
-    "phpunit/phpunit": "^11.5"
+    "phpunit/phpunit": "^11.5",
+    "phpstan/phpstan": "^2.3",
+    "phpbench/phpbench": "^1.7"
+  },
+  "config": {
+    "sort-packages": true
   },
   "minimum-stability": "stable",
   "prefer-stable": true

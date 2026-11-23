@@ -4,50 +4,81 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 use Closure;
+use InvalidArgumentException;
 use Override;
+use Stringable;
 
 final class StringSchema extends CoercibleSchema {
 
+  /** @var list<'trim'|'lower'|'upper'> */
+  private array $normalizers = [];
+
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function coerceInput(mixed $value): mixed {
+    if (is_int($value) || is_float($value) && is_finite($value) || $value instanceof Stringable) {
+      return (string) $value;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_string($value)) {
       return ParseResult::ok($value);
     }
 
-    if (!$this->coerce) {
-      return $this->invalidStringType($value, $path);
-    }
-
-    if (
-      is_scalar($value)
-      || $value === null
-      || is_object($value) && method_exists($value, '__toString')
-    ) {
-      return ParseResult::ok((string) $value);
-    }
-
-    return $this->invalidStringType($value, $path);
+    return ParseResult::fail($this->typeIssue('string', $input, $path));
   }
 
+  /**
+   * Applies the normalizers in registration order, between the type check and
+   * the rules. Never fails. With invalid UTF-8, the case ones return the string
+   * untouched, because mbstring would replace the invalid bytes.
+   *
+   * @param string[] $path
+   */
+  #[Override]
+  protected function validateType(mixed $value, array $path = []): ParseResult {
+    foreach ($this->normalizers as $normalizer) {
+      $value = match ($normalizer) {
+        'trim' => trim($value),
+        'lower' => mb_check_encoding($value, 'UTF-8') ? mb_strtolower($value, 'UTF-8') : $value,
+        'upper' => mb_check_encoding($value, 'UTF-8') ? mb_strtoupper($value, 'UTF-8') : $value,
+      };
+    }
+
+    return ParseResult::ok($value);
+  }
+
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function min(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'min');
+
     return $this->addRule(new Rule(
       name: 'min',
       code: 'too_small',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) >= $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be at least {$params['length']} characters",
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') >= $params['length'],
+      message: $message ?? "Must be at least {$length} characters",
       params: ['length' => $length]
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function max(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'max');
+
     return $this->addRule(new Rule(
       name: 'max',
       code: 'too_big',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) <= $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be at most {$params['length']} characters",
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') <= $params['length'],
+      message: $message ?? "Must be at most {$length} characters",
       params: ['length' => $length]
     ));
   }
@@ -70,7 +101,26 @@ final class StringSchema extends CoercibleSchema {
     ));
   }
 
+  /**
+   * 8-4-4-4-12 hex format, without checking version or variant (accepts the nil UUID).
+   */
+  public function uuid(string|Closure|null $message = null): static {
+    return $this->addRule(new Rule(
+      name: 'uuid',
+      code: 'invalid_format',
+      check: static fn(string $value): bool => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $value) === 1,
+      message: $message ?? 'Invalid UUID'
+    ));
+  }
+
+  /**
+   * @throws InvalidArgumentException if the pattern does not compile (including one without delimiters)
+   */
   public function regex(string $pattern, string|Closure|null $message = null): static {
+    if (@preg_match($pattern, '') === false) {
+      throw new InvalidArgumentException("invalid regex pattern: $pattern");
+    }
+
     return $this->addRule(new Rule(
       name: 'regex',
       code: 'invalid_format',
@@ -84,7 +134,7 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'nonempty',
       code: 'too_small',
-      check: static fn(string $value): bool => mb_strlen($value) > 0,
+      check: static fn(string $value): bool => $value !== '',
       message: $message ?? 'String must not be empty'
     ));
   }
@@ -94,7 +144,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'startsWith',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_starts_with($value, $params['prefix']),
-      message: $message ?? static fn(string $value, array $params): string => "Must start with '{$params['prefix']}'",
+      message: $message ?? "Must start with '{$prefix}'",
       params: ['prefix' => $prefix]
     ));
   }
@@ -104,7 +154,7 @@ final class StringSchema extends CoercibleSchema {
       name: 'endsWith',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_ends_with($value, $params['suffix']),
-      message: $message ?? static fn(string $value, array $params): string => "Must end with '{$params['suffix']}'",
+      message: $message ?? "Must end with '{$suffix}'",
       params: ['suffix' => $suffix]
     ));
   }
@@ -114,26 +164,32 @@ final class StringSchema extends CoercibleSchema {
       name: 'includes',
       code: 'invalid_format',
       check: static fn(string $value, array $params): bool => str_contains($value, $params['substring']),
-      message: $message ?? static fn(string $value, array $params): string => "Must include '{$params['substring']}'",
+      message: $message ?? "Must include '{$substring}'",
       params: ['substring' => $substring]
     ));
   }
 
+  /**
+   * @throws InvalidArgumentException if the count is negative
+   */
   public function length(int $length, string|Closure|null $message = null): static {
+    self::assertCount($length, 'length');
+
     return $this->addRule(new Rule(
       name: 'length',
       code: 'invalid_length',
-      check: static fn(string $value, array $params): bool => mb_strlen($value) === $params['length'],
-      message: $message ?? static fn(string $value, array $params): string => "Must be exactly {$params['length']} characters",
+      check: static fn(string $value, array $params): bool => mb_check_encoding($value, 'UTF-8') && mb_strlen($value, 'UTF-8') === $params['length'],
+      message: $message ?? "Must be exactly {$length} characters",
       params: ['length' => $length]
     ));
   }
 
   public function lowercase(string|Closure|null $message = null): static {
+    // Invalid UTF-8 already fails: mbstring replaces the invalid bytes, and the comparison does not match.
     return $this->addRule(new Rule(
       name: 'lowercase',
       code: 'invalid_case',
-      check: static fn(string $value): bool => mb_strtolower($value) === $value,
+      check: static fn(string $value): bool => mb_strtolower($value, 'UTF-8') === $value,
       message: $message ?? 'Must be all lowercase'
     ));
   }
@@ -142,30 +198,30 @@ final class StringSchema extends CoercibleSchema {
     return $this->addRule(new Rule(
       name: 'uppercase',
       code: 'invalid_case',
-      check: static fn(string $value): bool => mb_strtoupper($value) === $value,
+      check: static fn(string $value): bool => mb_strtoupper($value, 'UTF-8') === $value,
       message: $message ?? 'Must be all uppercase'
     ));
   }
 
   public function trim(): static {
-    return $this->transform(static fn(string $value): string => trim($value));
+    return $this->addNormalizer('trim');
   }
 
   public function toLowerCase(): static {
-    return $this->transform(static fn(string $value): string => mb_strtolower($value));
+    return $this->addNormalizer('lower');
   }
 
   public function toUpperCase(): static {
-    return $this->transform(static fn(string $value): string => mb_strtoupper($value));
+    return $this->addNormalizer('upper');
   }
 
-  private function invalidStringType(mixed $value, array $path): ParseResult {
-    return ParseResult::fail(
-      new Issue(
-        $path,
-        'Expected string, received ' . gettype($value),
-        'invalid_type'
-      )
-    );
+  /**
+   * @param 'trim'|'lower'|'upper' $normalizer
+   */
+  private function addNormalizer(string $normalizer): static {
+    $clone = clone $this;
+    $clone->normalizers[] = $normalizer;
+
+    return $clone;
   }
 }

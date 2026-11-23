@@ -4,11 +4,16 @@ namespace Esliph\Validator\Tests\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
+use Esliph\Validator\Schemas\Schema;
+use Esliph\Validator\Validation\Rule;
 
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionProperty;
 
 abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
@@ -18,6 +23,11 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
   }
 
   abstract protected function createNumberSchema(): NumberSchema;
+
+  /**
+   * Label of the expected type, as it appears in the text and in the `expected` param.
+   */
+  abstract protected function expectedTypeLabel(): string;
 
   #[Override]
   protected function getDefaultValue(): mixed {
@@ -31,7 +41,7 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $path): bool => $value > 0;
+    return fn(mixed $value): bool => $value > 0;
   }
 
   public function test_min_WithValueGreaterThanMin_ShouldPass(): void {
@@ -255,7 +265,9 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(5);
 
     $this->assertFalse($result->success);
-    $this->assertSame('out_of_range', $result->issues[0]->code);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_small', $result->issues[0]->code);
+    $this->assertSame('Must be between 10 and 20', $result->issues[0]->message);
   }
 
   public function test_between_WithValueAboveMax_ShouldFail(): void {
@@ -264,16 +276,101 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $result = $schema->safeParse(25);
 
     $this->assertFalse($result->success);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('too_big', $result->issues[0]->code);
+    $this->assertSame('Must be between 10 and 20', $result->issues[0]->message);
   }
 
   public function test_between_WithCustomMessage_ShouldUseCustomMessage(): void {
     $customMessage = 'Value must be between 10 and 20';
     $schema = $this->createNumberSchema()->between(10, 20, $customMessage);
 
-    $result = $schema->safeParse(5);
+    $below = $schema->safeParse(5);
+    $above = $schema->safeParse(25);
 
-    $this->assertFalse($result->success);
-    $this->assertSame($customMessage, $result->issues[0]->message);
+    $this->assertFalse($below->success);
+    $this->assertSame($customMessage, $below->issues[0]->message);
+    $this->assertFalse($above->success);
+    $this->assertSame($customMessage, $above->issues[0]->message);
+  }
+
+  public function test_between_WithClosureMessage_ShouldReceiveBothBoundsOnEachSide(): void {
+    $schema = $this->createNumberSchema()->between(
+      10,
+      20,
+      fn(mixed $value, array $params): string => "{$params['min']}..{$params['max']}"
+    );
+
+    $this->assertSame('10..20', $schema->safeParse(5)->issues[0]->message);
+    $this->assertSame('10..20', $schema->safeParse(25)->issues[0]->message);
+  }
+
+  public function test_between_WithMinGreaterThanMax_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('between min must be less than or equal to max');
+
+    $this->createNumberSchema()->between(5, 1);
+  }
+
+  public function test_between_WithEqualBounds_ShouldAcceptBound(): void {
+    $schema = $this->createNumberSchema()->between(3, 3);
+
+    $this->assertTrue($schema->safeParse(3)->success);
+  }
+
+  /**
+   * @return iterable<string, array{Closure(NumberSchema): mixed, string}>
+   */
+  public static function provideBoundMethods(): iterable {
+    foreach (['NAN' => NAN, 'INF' => INF, '-INF' => -INF] as $label => $n) {
+      yield "gt $label" => [fn(NumberSchema $s) => $s->gt($n), 'gt'];
+      yield "gte $label" => [fn(NumberSchema $s) => $s->gte($n), 'gte'];
+      yield "lt $label" => [fn(NumberSchema $s) => $s->lt($n), 'lt'];
+      yield "lte $label" => [fn(NumberSchema $s) => $s->lte($n), 'lte'];
+      yield "min $label" => [fn(NumberSchema $s) => $s->min($n), 'min'];
+      yield "max $label" => [fn(NumberSchema $s) => $s->max($n), 'max'];
+      yield "between min $label" => [fn(NumberSchema $s) => $s->between($n, 10), 'between'];
+      yield "between max $label" => [fn(NumberSchema $s) => $s->between(0, $n), 'between'];
+    }
+  }
+
+  /**
+   * @param Closure(NumberSchema): mixed $call
+   */
+  #[DataProvider('provideBoundMethods')]
+  public function test_bound_WithNonFiniteBound_ShouldThrow(Closure $call, string $method): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("$method bound must be a finite number");
+
+    $call($this->createNumberSchema());
+  }
+
+  /**
+   * @return iterable<string, array{Closure(NumberSchema): NumberSchema, list<string>}>
+   */
+  public static function provideRuleNames(): iterable {
+    yield 'min' => [fn(NumberSchema $s) => $s->min(1), ['min']];
+    yield 'max' => [fn(NumberSchema $s) => $s->max(1), ['max']];
+    yield 'positive' => [fn(NumberSchema $s) => $s->positive(), ['positive']];
+    yield 'nonnegative' => [fn(NumberSchema $s) => $s->nonnegative(), ['nonnegative']];
+    yield 'negative' => [fn(NumberSchema $s) => $s->negative(), ['negative']];
+    yield 'nonpositive' => [fn(NumberSchema $s) => $s->nonpositive(), ['nonpositive']];
+    yield 'between' => [fn(NumberSchema $s) => $s->between(1, 2), ['between_min', 'between_max']];
+  }
+
+  /**
+   * @param Closure(NumberSchema): NumberSchema $build
+   * @param list<string> $expected
+   */
+  #[DataProvider('provideRuleNames')]
+  public function test_rules_ShouldUseOwnRuleNames(Closure $build, array $expected): void {
+    $schema = $build($this->createNumberSchema());
+
+    /** @var Rule[] $rules */
+    $rules = (new ReflectionProperty(Schema::class, 'rules'))->getValue($schema);
+    $names = array_map(fn(Rule $rule): string => $rule->name, $rules);
+
+    $this->assertSame($expected, $names);
   }
 
   public function test_multipleOf_WithMultipleValue_ShouldPass(): void {
@@ -309,6 +406,164 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame($customMessage, $result->issues[0]->message);
+  }
+
+  /**
+   * @return array<string, array{int|float}>
+   */
+  public static function provideInvalidDivisors(): array {
+    return [
+      'zero' => [0],
+      'float_zero' => [0.0],
+      'negative' => [-5],
+      'infinity' => [INF],
+      'nan' => [NAN],
+    ];
+  }
+
+  #[DataProvider('provideInvalidDivisors')]
+  public function test_multipleOf_WithNonPositiveOrNonFiniteDivisor_ShouldThrow(int|float $divisor): void {
+    $this->expectException(InvalidArgumentException::class);
+
+    $this->createNumberSchema()->multipleOf($divisor);
+  }
+
+  /**
+   * @return array<string, array{float}>
+   */
+  public static function provideNonFiniteValues(): array {
+    return [
+      'infinity' => [INF],
+      'negative_infinity' => [-INF],
+      'nan' => [NAN],
+    ];
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_parseType_WithNonFiniteValue_ShouldFailWithNotFinite(float $value): void {
+    $result = $this->createNumberSchema()->safeParse($value);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('not_finite', $result->issues[0]->code);
+  }
+
+  /**
+   * @return array<string, array{float, string}>
+   */
+  public static function provideNonFiniteValueTexts(): array {
+    return [
+      'infinity' => [INF, 'INF'],
+      'negative_infinity' => [-INF, '-INF'],
+      'nan' => [NAN, 'NAN'],
+    ];
+  }
+
+  // PHP 8.5 raises a warning when NAN is cast to string, so the message must not depend on that cast.
+  #[DataProvider('provideNonFiniteValueTexts')]
+  public function test_parseType_WithNonFiniteValue_ShouldReportTheValueWithoutRaisingWarnings(float $value, string $text): void {
+    $warnings = [];
+
+    set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+      $warnings[] = $message;
+
+      return true;
+    });
+
+    try {
+      $result = $this->createNumberSchema()->safeParse($value);
+    } finally {
+      restore_error_handler();
+    }
+
+    $this->assertSame([], $warnings);
+    $this->assertSame("Expected finite number, received {$text}", $result->issues[0]->message);
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_parseType_WithNonFiniteValueAndCoercion_ShouldFailWithNotFinite(float $value): void {
+    $result = $this->createNumberSchema()->coerce()->safeParse($value);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('not_finite', $result->issues[0]->code);
+  }
+
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideNonGrammarStrings(): array {
+    return [
+      'trailing_dot' => ['1.'],
+      'hex' => ['0x1A'],
+      'underscore' => ['1_000'],
+      'inner_space' => ['1 000'],
+      'double_sign' => ['+-1'],
+      'bare_exponent' => ['e3'],
+      'inner_newline' => ["1\n2"],
+      'inf_word' => ['INF'],
+    ];
+  }
+
+  #[DataProvider('provideNonGrammarStrings')]
+  public function test_coerce_WithNonGrammarString_ShouldFailInvalidType(string $input): void {
+    $result = $this->createNumberSchema()->coerce()->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected ' . $this->expectedTypeLabel() . ', received string', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithNotFiniteClosure_ShouldReceiveOriginalValueAndEmptyParams(): void {
+    $received = null;
+    $schema = $this->createNumberSchema()->coerce()->messages([
+      'not_finite' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'finito, por favor';
+      },
+    ]);
+
+    $result = $schema->safeParse(INF);
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame('finito, por favor', $result->issues[0]->message);
+    $this->assertSame([INF, []], $received);
+  }
+
+  #[DataProvider('provideNonFiniteValues')]
+  public function test_messages_WithNotFiniteString_ShouldUseCustomMessage(float $value): void {
+    $schema = $this->createNumberSchema()->messages(['not_finite' => 'finito, por favor']);
+
+    $result = $schema->safeParse($value);
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame('finito, por favor', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveExpectedAndReceived(): void {
+    $schema = $this->createNumberSchema()->messages([
+      'invalid_type' => fn(mixed $value, array $params): string => (string) json_encode($params),
+    ]);
+
+    $result = $schema->safeParse('abc');
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame(
+      '{"expected":"' . $this->expectedTypeLabel() . '","received":"string"}',
+      $result->issues[0]->message
+    );
+  }
+
+  public function test_parseType_WithBool_ShouldDescribeTypeWithDebugTypeVocabulary(): void {
+    $result = $this->createNumberSchema()->safeParse(true);
+
+    $this->assertSame('Expected ' . $this->expectedTypeLabel() . ', received bool', $result->issues[0]->message);
+  }
+
+  public function test_multipleOf_WithFractionalDivisorAndIntegerMultiple_ShouldPass(): void {
+    $schema = $this->createNumberSchema()->multipleOf(0.1);
+
+    $result = $schema->safeParse(3);
+
+    $this->assertTrue($result->success);
   }
 
   public function test_positive_WithPositiveValue_ShouldPass(): void {
@@ -407,6 +662,30 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $this->assertFalse($result->success);
   }
 
+  public function test_positive_WithZero_ShouldDescribePositiveInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->positive()->safeParse(0);
+
+    $this->assertSame('Must be a positive number', $result->issues[0]->message);
+  }
+
+  public function test_nonnegative_WithNegativeValue_ShouldDescribeNonNegativeInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->nonnegative()->safeParse(-1);
+
+    $this->assertSame('Must be a non-negative number', $result->issues[0]->message);
+  }
+
+  public function test_negative_WithZero_ShouldDescribeNegativeInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->negative()->safeParse(0);
+
+    $this->assertSame('Must be a negative number', $result->issues[0]->message);
+  }
+
+  public function test_nonpositive_WithPositiveValue_ShouldDescribeNonPositiveInDefaultMessage(): void {
+    $result = $this->createNumberSchema()->nonpositive()->safeParse(1);
+
+    $this->assertSame('Must be a non-positive number', $result->issues[0]->message);
+  }
+
   public function test_combined_GtAndLt_ShouldEnforceExclusiveRange(): void {
     $schema = $this->createNumberSchema()
       ->gt(10)
@@ -485,7 +764,7 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
 
   public function test_refineWithComplexCondition_ShouldEnforce(): void {
     $schema = $this->createNumberSchema()->refine(
-      fn(mixed $v, array $p): bool => $v > 0 && $v < 100 && fmod($v, 2) === 0.0,
+      fn(mixed $v): bool => $v > 0 && $v < 100 && fmod($v, 2) === 0.0,
       'Must be positive, less than 100, and even'
     );
 
@@ -530,5 +809,13 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $result2 = $schema->safeParse(12);
 
     $this->assertTrue($result2->success);
+  }
+
+  public function test_min_WithFloatBound_ShouldFormatBoundInDefaultMessage(): void {
+    $schema = $this->createNumberSchema()->min(0.1);
+
+    $result = $schema->safeParse(0);
+
+    $this->assertSame('Must be greater than or equal to 0.1', $result->issues[0]->message);
   }
 }

@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      # The reachability checks in check-tag.sh need every branch, not only the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: tag
+        name: Verify the tag
+        run: |
+          # On its own line so that a refused tag stops the step: a failure inside $(...) in an echo argument does not.
+          kind=$(bash .github/scripts/check-tag.sh "$GITHUB_REF_NAME")
+
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+      # An rc tag reads the section of its final version: the release branch carries it under that name.
+      - name: Extract the changelog section
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%-rc.*}"
+
+          bash .github/scripts/extract-changelog.sh "$version" > "$RUNNER_TEMP/notes.md"
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - run: composer install --prefer-dist --no-progress
+
+      - run: composer run test
+
+      - run: composer run analyse
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ steps.tag.outputs.kind }}
+        run: |
+          flags=()
+
+          case "$KIND" in
+            stable) ;;
+            prerelease) flags+=(--prerelease) ;;
+            *) echo "::error::Unexpected release kind '$KIND'."; exit 1 ;;
+          esac
+
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}"

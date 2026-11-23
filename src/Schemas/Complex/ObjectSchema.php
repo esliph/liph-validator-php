@@ -4,60 +4,74 @@ namespace Esliph\Validator\Schemas\Complex;
 
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
+use InvalidArgumentException;
+use LogicException;
 use Override;
 
+/**
+ * The object's `refine`/`transform` receive the output `stdClass`: with defaults,
+ * coercion and field transforms applied, without the keys dropped by
+ * `strip` and without the absent optionals, which must be read with `??`.
+ *
+ * Fields are read through `get_object_vars`: only initialized public
+ * properties count, and whatever exists only through `__get` is not read.
+ * `Traversable` objects (`ArrayObject`...) are not iterated: the iterator's entries
+ * count neither as fields nor as unknown keys, so `strict` does not
+ * reject them and `passthrough` does not copy them.
+ */
 final class ObjectSchema extends CoercibleSchema {
 
-  protected bool $strict = false;
+  /** @var 'strip'|'strict'|'passthrough'|'catchall' */
+  protected string $unknownKeys = 'strip';
   protected ?Schema $catchall = null;
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
+   *
+   * @throws InvalidArgumentException if any shape value is not a Schema
    */
   public function __construct(
     protected array $shape = []
   ) {
-  }
-
-  public function __clone(): void {
-    parent::__clone();
-
-    $this->shape = array_map(
-      static fn(Schema $schema): Schema => clone $schema,
-      $this->shape
-    );
-
-    if ($this->catchall !== null) {
-      $this->catchall = clone $this->catchall;
-    }
+    self::assertShape($shape);
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    if ($this->coerce && is_array($value)) {
-      if (!$this->isAssociativeArray($value)) {
-        return ParseResult::fail(
-          new Issue(
-            path: $path,
-            message: 'Expected object or associative array, received indexed array',
-            code: 'invalid_type'
-          )
-        );
-      }
+  protected static function messageCodes(): array {
+    return [...parent::messageCodes(), 'unrecognized_keys'];
+  }
 
-      return ParseResult::ok((object) $value);
+  #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
+    }
+
+    if (is_string($value)) {
+      return self::decodeJson($value, '{');
+    }
+
+    if (is_array($value) && $this->isAssociativeArray($value)) {
+      return (object) $value;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
+    if ($this->coerce && is_array($value) && !$this->isAssociativeArray($value)) {
+      return ParseResult::fail(
+        $this->issue('invalid_type', 'Expected object or associative array, received list', $input, $path, [
+          'expected' => 'object',
+          'received' => 'list',
+        ])
+      );
     }
 
     if (!is_object($value)) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected object, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
+      return ParseResult::fail($this->typeIssue('object', $input, $path));
     }
 
     return ParseResult::ok($value);
@@ -65,50 +79,42 @@ final class ObjectSchema extends CoercibleSchema {
 
   #[Override]
   protected function validateType(mixed $value, array $path = []): ParseResult {
+    $props = get_object_vars($value);
     $parsedValue = new \stdClass();
     $issues = [];
 
     foreach ($this->shape as $key => $schema) {
-      $fieldPath = array_merge($path, [$key]);
-      $fieldValue = $value->$key ?? null;
-
-      $result = $schema->_parse($fieldValue, $fieldPath);
+      $exists = array_key_exists($key, $props);
+      $result = $schema->_parse($exists ? $props[$key] : null, array_merge($path, [$key]));
 
       if (!$result->success) {
-        $issues = array_merge($issues, $result->issues);
-      } else {
+        // No array_merge: it copies the accumulated list for every child and becomes quadratic in the total number of issues.
+        array_push($issues, ...$result->issues);
+      } elseif ($exists || $result->data !== null) {
         $parsedValue->$key = $result->data;
       }
     }
 
-    if ($this->strict) {
-      foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
-          $fieldPath = array_merge($path, [$key]);
-          $issues[] = new Issue(
-            path: $fieldPath,
-            message: 'Unrecognized key in object',
-            code: 'unrecognized_keys'
-          );
+    if ($this->unknownKeys !== 'strip') {
+      foreach ($props as $key => $val) {
+        if (isset($this->shape[$key])) {
+          continue;
         }
-      }
-    } else if ($this->catchall !== null) {
-      foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
+
+        if ($this->unknownKeys === 'passthrough') {
+          $parsedValue->$key = $val;
+        } elseif ($this->unknownKeys === 'strict') {
+          $fieldPath = array_merge($path, [$key]);
+          $issues[] = $this->issue('unrecognized_keys', 'Unrecognized key in object', $val, $fieldPath, ['key' => $key]);
+        } elseif ($this->catchall !== null) {
           $fieldPath = array_merge($path, [$key]);
           $result = $this->catchall->_parse($val, $fieldPath);
 
           if (!$result->success) {
-            $issues = array_merge($issues, $result->issues);
+            array_push($issues, ...$result->issues);
           } else {
             $parsedValue->$key = $result->data;
           }
-        }
-      }
-    } else {
-      foreach ($value as $key => $val) {
-        if (!isset($this->shape[$key])) {
-          $parsedValue->$key = $val;
         }
       }
     }
@@ -121,97 +127,123 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @param array<string, Schema> $shape
+   * @return array<string|int, Schema>
+   */
+  public function getShape(): array {
+    return $this->shape;
+  }
+
+  /**
+   * @param array<string|int, Schema> $shape
+   *
+   * @throws InvalidArgumentException if any shape value is not a Schema
+   * @throws LogicException after refine() or transform()
    */
   public function shape(array $shape): static {
-    $clone = clone $this;
-    $clone->shape = $shape;
+    self::assertShape($shape);
 
-    return $clone;
+    return $this->withShape($shape);
   }
 
   /**
+   * Follows the shape's order, not that of `$keys`.
+   *
    * @param string[] $keys
+   *
+   * @throws InvalidArgumentException if any key is not in the shape
+   * @throws LogicException after refine() or transform()
    */
   public function pick(array $keys): static {
-    $clone = clone $this;
-    $newShape = [];
+    $this->assertKnownKeys($keys);
 
-    foreach ($keys as $key) {
-      if (isset($this->shape[$key])) {
-        $newShape[$key] = $this->shape[$key];
-      }
-    }
-
-    $clone->shape = $newShape;
-
-    return $clone;
+    return $this->withShape(array_intersect_key($this->shape, array_flip($keys)));
   }
 
   /**
    * @param string[] $keys
+   *
+   * @throws InvalidArgumentException if any key is not in the shape
+   * @throws LogicException after refine() or transform()
    */
   public function omit(array $keys): static {
-    $clone = clone $this;
-    $keysToOmit = array_flip($keys);
-    $newShape = [];
+    $this->assertKnownKeys($keys);
 
-    foreach ($this->shape as $key => $schema) {
-      if (!isset($keysToOmit[$key])) {
-        $newShape[$key] = $schema;
-      }
-    }
-
-    $clone->shape = $newShape;
-
-    return $clone;
+    return $this->withShape(array_diff_key($this->shape, array_flip($keys)));
   }
 
   /**
-   * @param array<string, Schema> $shape
+   * @param array<string|int, Schema> $shape
+   *
+   * @throws InvalidArgumentException if any shape value is not a Schema
+   * @throws LogicException after refine() or transform()
    */
   public function extend(array $shape): static {
-    $clone = clone $this;
-    $clone->shape = array_merge($this->shape, $shape);
+    self::assertShape($shape);
 
-    return $clone;
+    return $this->withShape(array_replace($this->shape, $shape));
   }
 
+  /**
+   * @throws LogicException after refine() or transform(), or if `$other`
+   * has refine() or transform(), which would be lost in the merge
+   */
   public function merge(self $other): static {
-    return $this->extend($other->shape);
+    if ($other->hasRefineOrTransform()) {
+      throw new LogicException('cannot merge an object schema that has refine() or transform()');
+    }
+
+    return $this->withShape(array_replace($this->shape, $other->shape));
   }
 
+  /**
+   * @throws LogicException after refine() or transform()
+   */
   public function partial(): static {
-    $clone = clone $this;
+    $this->assertDerivable();
+
     $newShape = [];
 
     foreach ($this->shape as $key => $schema) {
       $newShape[$key] = $schema->optional();
     }
 
-    $clone->shape = $newShape;
-
-    return $clone;
+    return $this->withShape($newShape);
   }
 
+  /**
+   * Shallow: only optional fields are cloned; the others enter the new shape
+   * as the same instance.
+   *
+   * @throws LogicException after refine() or transform()
+   */
   public function required(): static {
-    $clone = clone $this;
+    $this->assertDerivable();
+
     $newShape = [];
 
     foreach ($this->shape as $key => $schema) {
-      $newSchema = clone $schema;
-      $newSchema->isOptional = false;
-      $newShape[$key] = $newSchema;
+      if ($schema->isOptional) {
+        $schema = clone $schema;
+        $schema->isOptional = false;
+      }
+
+      $newShape[$key] = $schema;
     }
 
-    $clone->shape = $newShape;
+    return $this->withShape($newShape);
+  }
+
+  public function strip(): static {
+    $clone = clone $this;
+    $clone->unknownKeys = 'strip';
+    $clone->catchall = null;
 
     return $clone;
   }
 
   public function strict(): static {
     $clone = clone $this;
-    $clone->strict = true;
+    $clone->unknownKeys = 'strict';
     $clone->catchall = null;
 
     return $clone;
@@ -219,7 +251,7 @@ final class ObjectSchema extends CoercibleSchema {
 
   public function passthrough(): static {
     $clone = clone $this;
-    $clone->strict = false;
+    $clone->unknownKeys = 'passthrough';
     $clone->catchall = null;
 
     return $clone;
@@ -227,12 +259,83 @@ final class ObjectSchema extends CoercibleSchema {
 
   public function catchall(Schema $schema): static {
     $clone = clone $this;
+    $clone->unknownKeys = 'catchall';
     $clone->catchall = $schema;
 
     return $clone;
   }
 
+  /**
+   * It is a transform: deriving the object after it (`pick`, `omit`, `extend`...)
+   * throws LogicException. Call it last.
+   */
   public function asArray(): static {
     return $this->transform(static fn(\stdClass $value): array => (array) $value);
+  }
+
+  /**
+   * The object's rules and transforms were written for the old shape; that is why
+   * deriving after refine() or transform() is refused.
+   *
+   * @param array<string|int, Schema> $shape
+   *
+   * @throws LogicException after refine() or transform()
+   */
+  private function withShape(array $shape): static {
+    $this->assertDerivable();
+
+    $clone = clone $this;
+    $clone->shape = $shape;
+
+    return $clone;
+  }
+
+  /**
+   * @throws LogicException after refine() or transform()
+   */
+  private function assertDerivable(): void {
+    if ($this->hasRefineOrTransform()) {
+      throw new LogicException('cannot derive an object schema after refine() or transform()');
+    }
+  }
+
+  private function hasRefineOrTransform(): bool {
+    if ($this->transforms !== []) {
+      return true;
+    }
+
+    foreach ($this->rules as $rule) {
+      if ($rule->name === 'refinement') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * @param array<mixed> $shape
+   *
+   * @throws InvalidArgumentException if any shape value is not a Schema
+   */
+  private static function assertShape(array $shape): void {
+    foreach ($shape as $key => $schema) {
+      if (!$schema instanceof Schema) {
+        throw new InvalidArgumentException("object shape value for key '$key' must be a Schema");
+      }
+    }
+  }
+
+  /**
+   * @param string[] $keys
+   *
+   * @throws InvalidArgumentException if any key is not in the shape
+   */
+  private function assertKnownKeys(array $keys): void {
+    foreach ($keys as $key) {
+      if (!array_key_exists($key, $this->shape)) {
+        throw new InvalidArgumentException("unknown key '$key' in object shape");
+      }
+    }
   }
 }

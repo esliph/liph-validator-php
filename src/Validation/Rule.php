@@ -7,7 +7,7 @@ use Closure;
 readonly final class Rule {
 
   /**
-   * @param Closure(mixed, array): string $check
+   * @param Closure(mixed, array): bool $check
    * @param string|Closure(mixed, array): string|null $message
    */
   public function __construct(

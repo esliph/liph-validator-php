@@ -9,6 +9,7 @@ use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Tests\Schemas\BaseCoercibleSchemaTestCase;
 
 use Closure;
+use InvalidArgumentException;
 use Override;
 
 class StringSchemaTest extends BaseCoercibleSchemaTestCase {
@@ -16,6 +17,11 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
   #[Override]
   protected function createSchemaCoercible(): CoercibleSchema {
     return new StringSchema();
+  }
+
+  #[Override]
+  protected function blankCoercesToNull(): bool {
+    return false;
   }
 
   #[Override]
@@ -40,7 +46,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
   #[Override]
   protected function getRefineCheck(): Closure {
-    return fn(mixed $value, array $path): bool => strlen($value) > 5;
+    return fn(mixed $value): bool => strlen($value) > 5;
   }
 
   public function test_parseType_WithValidString_ShouldAccept(): void {
@@ -171,13 +177,58 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertSame('3.14', $result->data);
   }
 
-  public function test_parseType_WithCoerceAndBoolean_ShouldCoerce(): void {
+  public function test_parseType_WithCoerceAndBoolean_ShouldFail(): void {
     $schema = (new StringSchema())->coerce();
 
     $result = $schema->safeParse(true);
 
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+  }
+
+  /** @return array<string, array{mixed, string}> */
+  public static function provideCoercibleToString(): array {
+    return [
+      'int' => [42, '42'],
+      'negative_int' => [-7, '-7'],
+      'float' => [1.5, '1.5'],
+      'whole_float' => [3.0, '3'],
+      'stringable' => [new class implements \Stringable {
+        public function __toString(): string {
+          return 'abc';
+        }
+      }, 'abc'],
+    ];
+  }
+
+  #[DataProvider('provideCoercibleToString')]
+  public function test_coerce_WithCoercibleValue_ShouldCastToString(mixed $input, string $expected): void {
+    $result = (new StringSchema())->coerce()->safeParse($input);
+
     $this->assertTrue($result->success);
-    $this->assertSame('1', $result->data);
+    $this->assertSame($expected, $result->data);
+  }
+
+  /** @return array<string, array{mixed, string}> */
+  public static function provideNonCoercibleToString(): array {
+    return [
+      'true' => [true, 'bool'],
+      'false' => [false, 'bool'],
+      'inf' => [INF, 'float'],
+      'neg_inf' => [-INF, 'float'],
+      'nan' => [NAN, 'float'],
+      'array' => [[], 'array'],
+      'object' => [new \stdClass(), 'stdClass'],
+    ];
+  }
+
+  #[DataProvider('provideNonCoercibleToString')]
+  public function test_coerce_WithNonCoercibleValue_ShouldFailInvalidType(mixed $input, string $received): void {
+    $result = (new StringSchema())->coerce()->safeParse($input);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame("Expected string, received $received", $result->issues[0]->message);
   }
 
   public function test_parseType_WithCoerceAndArray_ShouldFail(): void {
@@ -662,6 +713,58 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
     $this->assertStringContainsString("'substring'", $result->issues[0]->message);
   }
 
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideValidUuids(): array {
+    return [
+      'lowercase' => ['123e4567-e89b-12d3-a456-426614174000'],
+      'uppercase' => ['123E4567-E89B-12D3-A456-426614174000'],
+      'nil' => ['00000000-0000-0000-0000-000000000000'],
+    ];
+  }
+
+  #[DataProvider('provideValidUuids')]
+  public function test_uuid_WithValidUuid_ShouldPass(string $uuid): void {
+    $result = (new StringSchema())->uuid()->safeParse($uuid);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($uuid, $result->data);
+  }
+
+  /**
+   * @return array<string, array{string}>
+   */
+  public static function provideInvalidUuids(): array {
+    return [
+      'without hyphens' => ['123e4567e89b12d3a456426614174000'],
+      'one extra character' => ['123e4567-e89b-12d3-a456-4266141740000'],
+      'trailing newline' => ["123e4567-e89b-12d3-a456-426614174000\n"],
+      'non-hex character' => ['123e4567-e89b-12d3-a456-42661417400g'],
+    ];
+  }
+
+  #[DataProvider('provideInvalidUuids')]
+  public function test_uuid_WithInvalidUuid_ShouldFailInvalidFormat(string $uuid): void {
+    $result = (new StringSchema())->uuid()->safeParse($uuid);
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_format', $result->issues[0]->code);
+    $this->assertSame('Invalid UUID', $result->issues[0]->message);
+  }
+
+  public function test_uuid_WithCustomMessage_ShouldUseCustomMessage(): void {
+    $result = (new StringSchema())->uuid('Invalid UUID')->safeParse('x');
+
+    $this->assertSame('Invalid UUID', $result->issues[0]->message);
+  }
+
+  public function test_uuid_WithClosureMessage_ShouldReceiveValue(): void {
+    $result = (new StringSchema())->uuid(static fn(string $value): string => "bad: $value")->safeParse('x');
+
+    $this->assertSame('bad: x', $result->issues[0]->message);
+  }
+
   public function test_length_WithExactLength_ShouldPass(): void {
     $schema = (new StringSchema())->length(5);
 
@@ -713,6 +816,42 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertStringContainsString('exactly 5', $result->issues[0]->message);
+  }
+
+  public function test_max_WithInvalidUtf8_ShouldFailTooBig(): void {
+    $result = (new StringSchema())->max(3)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_big', $result->issues[0]->code);
+    $this->assertSame('Must be at most 3 characters', $result->issues[0]->message);
+  }
+
+  public function test_min_WithInvalidUtf8_ShouldFailTooSmall(): void {
+    $result = (new StringSchema())->min(1)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_length_WithInvalidUtf8_ShouldFailInvalidLength(): void {
+    $result = (new StringSchema())->length(1)->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_length', $result->issues[0]->code);
+  }
+
+  public function test_parseType_WithInvalidUtf8AndNoRules_ShouldAccept(): void {
+    $result = (new StringSchema())->safeParse("\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("\xff", $result->data);
+  }
+
+  public function test_max_WithValidMultibyte_ShouldCountCharacters(): void {
+    $schema = (new StringSchema())->max(3);
+
+    $this->assertTrue($schema->safeParse('ção')->success);
+    $this->assertSame('too_big', $schema->safeParse('ççço')->issues[0]->code);
   }
 
   public function test_lowercase_WithLowercaseString_ShouldPass(): void {
@@ -823,6 +962,24 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertFalse($result->success);
     $this->assertSame($customMessage, $result->issues[0]->message);
+  }
+
+  public function test_lowercase_WithInvalidUtf8_ShouldFailInvalidCase(): void {
+    $result = (new StringSchema())->lowercase()->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_case', $result->issues[0]->code);
+  }
+
+  public function test_uppercase_WithInvalidUtf8_ShouldFailInvalidCase(): void {
+    $result = (new StringSchema())->uppercase()->safeParse("\xff");
+
+    $this->assertFalse($result->success);
+    $this->assertSame('invalid_case', $result->issues[0]->code);
+  }
+
+  public function test_nonempty_WithInvalidUtf8_ShouldPass(): void {
+    $this->assertTrue((new StringSchema())->nonempty()->safeParse("\xff")->success);
   }
 
   public function test_trim_WithLeadingWhitespace_ShouldRemove(): void {
@@ -949,6 +1106,98 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result->success);
     $this->assertSame('HELLO123', $result->data);
+  }
+
+  public function test_trim_WithWhitespaceOnlyAndMin_ShouldFailTooSmall(): void {
+    $result = (new StringSchema())->trim()->min(1)->safeParse('   ');
+
+    $this->assertFalse($result->success);
+    $this->assertSame('too_small', $result->issues[0]->code);
+  }
+
+  public function test_trim_WithPaddedEmail_ShouldValidateTrimmedValue(): void {
+    $result = (new StringSchema())->trim()->email()->safeParse(' a@b.com ');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('a@b.com', $result->data);
+  }
+
+  public function test_toLowerCase_WithLowercaseRule_ShouldNormalizeBeforeRule(): void {
+    $result = (new StringSchema())->toLowerCase()->lowercase()->safeParse('ABC');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('abc', $result->data);
+  }
+
+  public function test_normalizers_InRegistrationOrder_ShouldApplyInOrder(): void {
+    $result = (new StringSchema())->toUpperCase()->toLowerCase()->safeParse('ß');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('ss', $result->data);
+  }
+
+  public function test_trim_WithDefault_ShouldNormalizeDefault(): void {
+    $result = (new StringSchema())->trim()->_default('  X  ')->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('X', $result->data);
+  }
+
+  public function test_trim_WithInvalidTypeClosure_ShouldReceiveOriginalInput(): void {
+    $received = null;
+    $schema = (new StringSchema())->trim()->messages([
+      'invalid_type' => function (mixed $value) use (&$received): string {
+        $received = $value;
+
+        return 'custom';
+      },
+    ]);
+
+    $schema->safeParse(['  a  ']);
+
+    $this->assertSame(['  a  '], $received);
+  }
+
+  public function test_trim_WithRuleMessageClosure_ShouldReceiveNormalizedValue(): void {
+    $result = (new StringSchema())
+      ->trim()
+      ->min(10, static fn(string $value): string => "got [$value]")
+      ->safeParse('  ab  ');
+
+    $this->assertSame('got [ab]', $result->issues[0]->message);
+  }
+
+  public function test_toLowerCase_WithInvalidUtf8_ShouldKeepStringIntact(): void {
+    $result = (new StringSchema())->toLowerCase()->safeParse("A\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("A\xff", $result->data);
+  }
+
+  public function test_toUpperCase_WithInvalidUtf8_ShouldKeepStringIntact(): void {
+    $result = (new StringSchema())->toUpperCase()->safeParse("a\xff");
+
+    $this->assertTrue($result->success);
+    $this->assertSame("a\xff", $result->data);
+  }
+
+  public function test_trim_AfterTransform_ShouldRunBeforeTransform(): void {
+    $result = (new StringSchema())
+      ->transform(static fn(string $value): string => "[$value]")
+      ->trim()
+      ->safeParse('  a  ');
+
+    $this->assertSame('[a]', $result->data);
+  }
+
+  public function test_trim_ShouldNotModifyOriginalSchema(): void {
+    $original = (new StringSchema())->min(1);
+    $original->trim();
+
+    $result = $original->safeParse('   ');
+
+    $this->assertTrue($result->success);
+    $this->assertSame('   ', $result->data);
   }
 
   public function test_combined_MinAndMax_ShouldEnforceBounds(): void {
@@ -1158,7 +1407,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
   public function test_edgecase_RefineWithComplexCondition_ShouldEnforce(): void {
     $schema = (new StringSchema())->refine(
-      fn(mixed $value, array $path): bool =>
+      fn(mixed $value): bool =>
       preg_match('/^[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$/', $value) === 1,
       'Invalid email format'
     );
@@ -1246,7 +1495,7 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    $shouldCoerce = is_string($value) || is_int($value) || is_float($value) || is_bool($value);
+    $shouldCoerce = is_string($value) || is_int($value) || is_float($value) && is_finite($value) || $value instanceof \Stringable;
 
     if ($shouldCoerce) {
       $this->assertTrue($result->success, "Type $typeName should coerce successfully");
@@ -1294,7 +1543,8 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse('  TEST STRING  ');
 
-    $this->assertFalse($result->success);
+    $this->assertTrue($result->success);
+    $this->assertSame('test string', $result->data);
 
     $result2 = $schema->safeParse('  test string  ');
 
@@ -1319,5 +1569,93 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $this->assertTrue($result3->success);
     $this->assertSame('TEST STRING', $result3->data);
+  }
+
+  public function test_refine_WithNativeSingleArgumentCallable_ShouldValidate(): void {
+    $schema = (new StringSchema())->refine(is_numeric(...));
+
+    $valid = $schema->safeParse('12');
+    $invalid = $schema->safeParse('ab');
+
+    $this->assertTrue($valid->success);
+    $this->assertFalse($invalid->success);
+    $this->assertSame('custom', $invalid->issues[0]->code);
+  }
+
+  public function test_messages_WithInvalidTypeString_ShouldUseCustomMessage(): void {
+    $result = (new StringSchema())->messages(['invalid_type' => 'Texto, por favor'])->safeParse(42);
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Texto, por favor', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithInvalidTypeClosure_ShouldReceiveValueAndParams(): void {
+    $received = null;
+    $schema = (new StringSchema())->messages([
+      'invalid_type' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse(42);
+
+    $this->assertSame('custom', $result->issues[0]->message);
+    $this->assertSame([42, ['expected' => 'string', 'received' => 'int']], $received);
+  }
+
+  public function test_parseType_WithInt_ShouldDescribeAsInt(): void {
+    $result = (new StringSchema())->safeParse(42);
+
+    $this->assertSame('Expected string, received int', $result->issues[0]->message);
+  }
+
+  public function test_messages_CalledTwiceWithDifferentCodes_ShouldMergeMaps(): void {
+    $schema = (new StringSchema())->messages(['required' => 'A'])->messages(['invalid_type' => 'B']);
+
+    $this->assertSame('A', $schema->safeParse(null)->issues[0]->message);
+    $this->assertSame('B', $schema->safeParse(1)->issues[0]->message);
+  }
+
+  /**
+   * @return iterable<string, array{Closure(StringSchema, int): StringSchema, string}>
+   */
+  public static function provideCountMethods(): iterable {
+    yield 'min' => [fn(StringSchema $s, int $n) => $s->min($n), 'min'];
+    yield 'max' => [fn(StringSchema $s, int $n) => $s->max($n), 'max'];
+    yield 'length' => [fn(StringSchema $s, int $n) => $s->length($n), 'length'];
+  }
+
+  /**
+   * @param Closure(StringSchema, int): StringSchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithNegative_ShouldThrow(Closure $call, string $method): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("$method length must be a non-negative int");
+
+    $call(new StringSchema(), -1);
+  }
+
+  /**
+   * @param Closure(StringSchema, int): StringSchema $call
+   */
+  #[DataProvider('provideCountMethods')]
+  public function test_count_WithZero_ShouldNotThrow(Closure $call, string $method): void {
+    $this->assertInstanceOf(StringSchema::class, $call(new StringSchema(), 0));
+  }
+
+  public function test_regex_WithInvalidPattern_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('invalid regex pattern: /(/');
+
+    (new StringSchema())->regex('/(/');
+  }
+
+  public function test_regex_WithoutDelimiters_ShouldThrow(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('invalid regex pattern: abc');
+
+    (new StringSchema())->regex('abc');
   }
 }

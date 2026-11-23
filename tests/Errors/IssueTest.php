@@ -84,7 +84,7 @@ class IssueTest extends TestCase {
   }
 
   public function test_construct_WithUnicodeMessage_ShouldStoreCorrectly(): void {
-    $message = 'Este campo é obrigatório: 日本語 🚀 Ñoño';
+    $message = 'This field is required: 日本語 🚀 Ñoño';
 
     $issue = new Issue(
       path: ['field'],

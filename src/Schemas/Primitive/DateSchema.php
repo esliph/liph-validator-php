@@ -4,7 +4,6 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Validation\Rule;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -19,62 +18,64 @@ final class DateSchema extends CoercibleSchema {
   protected ?DateTimeZone $timezone = null;
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected static function messageCodes(): array {
+    return [...parent::messageCodes(), 'invalid_date'];
+  }
+
+  #[Override]
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
+    }
+
+    if (is_int($value)) {
+      return (new DateTimeImmutable())->setTimestamp($value);
+    }
+
+    if (is_string($value)) {
+      return $this->parseDateString($value) ?? $value;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($value instanceof DateTimeInterface) {
       return ParseResult::ok(DateTimeImmutable::createFromInterface($value));
     }
 
-    if (!$this->coerce) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected DateTimeImmutable, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
+    if ($this->coerce && is_string($value)) {
+      return $this->invalidDate($input, $path);
     }
 
-    if (is_int($value)) {
-      return ParseResult::ok((new DateTimeImmutable())->setTimestamp($value));
-    }
+    return ParseResult::fail($this->typeIssue('DateTimeImmutable', $input, $path));
+  }
 
-    if (!is_string($value)) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected DateTimeImmutable, received ' . gettype($value),
-          code: 'invalid_type'
-        )
-      );
-    }
-
+  private function parseDateString(string $value): ?DateTimeImmutable {
     try {
-      if ($this->format !== null) {
-        $date = DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone);
-
-        if ($date === false) {
-          return ParseResult::fail(
-            new Issue(
-              path: $path,
-              message: 'Invalid date string',
-              code: 'invalid_date'
-            )
-          );
-        }
-
-        return ParseResult::ok($date);
-      }
-
-      return ParseResult::ok(new DateTimeImmutable($value, $this->timezone));
+      $date = $this->format !== null
+        ? DateTimeImmutable::createFromFormat($this->format, $value, $this->timezone)
+        : new DateTimeImmutable($value, $this->timezone);
     } catch (Exception) {
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Invalid date string',
-          code: 'invalid_date'
-        )
-      );
+      return null;
     }
+
+    // An impossible date (e.g. 2024-02-30) only raises a warning and would be normalized to the following month.
+    if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
+      return null;
+    }
+
+    return $date;
+  }
+
+  /**
+   * @param string[] $path
+   */
+  private function invalidDate(mixed $input, array $path): ParseResult {
+    return ParseResult::fail(
+      $this->issue('invalid_date', 'Invalid date string', $input, $path, ['format' => $this->format])
+    );
   }
 
   public function format(string $format): static {
@@ -91,12 +92,34 @@ final class DateSchema extends CoercibleSchema {
     return $clone;
   }
 
+  /**
+   * Inclusive bound (>=), like `NumberSchema::min`; `after` is the strict one.
+   */
   public function min(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
-    return $this->after($min, $message);
+    $minDate = $this->normalizeDate($min);
+
+    return $this->addRule(new Rule(
+      name: 'min',
+      code: 'too_early',
+      check: static fn(DateTimeImmutable $value, array $params): bool => $value >= $params['min'],
+      message: $message ?? "Must be on or after {$minDate->format(DateTimeInterface::ATOM)}",
+      params: ['min' => $minDate]
+    ));
   }
 
+  /**
+   * Inclusive bound (<=), like `NumberSchema::max`; `before` is the strict one.
+   */
   public function max(DateTimeInterface|string|int $max, string|Closure|null $message = null): static {
-    return $this->before($max, $message);
+    $maxDate = $this->normalizeDate($max);
+
+    return $this->addRule(new Rule(
+      name: 'max',
+      code: 'too_late',
+      check: static fn(DateTimeImmutable $value, array $params): bool => $value <= $params['max'],
+      message: $message ?? "Must be on or before {$maxDate->format(DateTimeInterface::ATOM)}",
+      params: ['max' => $maxDate]
+    ));
   }
 
   public function after(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
@@ -106,7 +129,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'after',
       code: 'too_early',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value > $params['min'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be after {$params['min']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be after {$minDate->format(DateTimeInterface::ATOM)}",
       params: ['min' => $minDate]
     ));
   }
@@ -118,7 +141,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'before',
       code: 'too_late',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value < $params['max'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be before {$params['max']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be before {$maxDate->format(DateTimeInterface::ATOM)}",
       params: ['max' => $maxDate]
     ));
   }
@@ -131,7 +154,7 @@ final class DateSchema extends CoercibleSchema {
       name: 'between',
       code: 'out_of_range',
       check: static fn(DateTimeImmutable $value, array $params): bool => $value >= $params['min'] && $value <= $params['max'],
-      message: $message ?? static fn(DateTimeImmutable $value, array $params): string => "Must be between {$params['min']->format(DateTimeInterface::ATOM)} and {$params['max']->format(DateTimeInterface::ATOM)}",
+      message: $message ?? "Must be between {$minDate->format(DateTimeInterface::ATOM)} and {$maxDate->format(DateTimeInterface::ATOM)}",
       params: ['min' => $minDate, 'max' => $maxDate]
     ));
   }

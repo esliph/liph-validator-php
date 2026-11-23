@@ -3,60 +3,43 @@
 namespace Esliph\Validator\Schemas\Primitive;
 
 use Esliph\Validator\Results\ParseResult;
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Schemas\CoercibleSchema;
 use Override;
 
 final class BooleanSchema extends CoercibleSchema {
 
+  private const array VOCABULARY = [
+    'true' => true, '1' => true, 'on' => true, 'yes' => true,
+    'false' => false, '0' => false, 'off' => false, 'no' => false,
+  ];
+
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function coerceInput(mixed $value): mixed {
+    if (self::isBlank($value)) {
+      return null;
+    }
+
+    if ($value === 1) {
+      return true;
+    }
+
+    if ($value === 0) {
+      return false;
+    }
+
+    if (is_string($value)) {
+      return self::VOCABULARY[strtolower(trim($value))] ?? $value;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_bool($value)) {
       return ParseResult::ok($value);
     }
 
-    if (!$this->coerce) {
-      return $this->invalidTypeBoolean($value, $path);
-    }
-
-    $value = $this->coerceToBoolean($value);
-
-    if ($value === null) {
-      return $this->invalidTypeBoolean($value, $path);
-    }
-
-    return ParseResult::ok($value);
-  }
-
-  private function coerceToBoolean(mixed $value): ?bool {
-    if (is_string($value)) {
-      $value = mb_strtolower(trim($value));
-
-      return match ($value) {
-        'true', '1', 'yes', 'on' => true,
-        'false', '0', 'no', 'off', '' => false,
-        default => null,
-      };
-    }
-
-    if (is_int($value)) {
-      return match ($value) {
-        1 => true,
-        0 => false,
-        default => null,
-      };
-    }
-
-    return null;
-  }
-
-  private function invalidTypeBoolean(mixed $value, array $path): ParseResult {
-    return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected boolean, received ' . gettype($value),
-        code: 'invalid_type'
-      )
-    );
+    return ParseResult::fail($this->typeIssue('bool', $input, $path));
   }
 }

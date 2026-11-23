@@ -4,53 +4,65 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Override;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 
 class IntegerSchema extends NumberSchema {
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function coerceInput(mixed $value): mixed {
+    if (!is_string($value)) {
+      return $value;
+    }
+
+    $trimmed = trim($value);
+
+    if ($trimmed === '') {
+      return null;
+    }
+
+    if (preg_match(self::INT_PATTERN, $trimmed) === 1) {
+      return self::toExactInt($trimmed) ?? $value;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_int($value)) {
       return ParseResult::ok($value);
     }
 
     if (is_float($value)) {
-      if (fmod($value, 1.0) === 0.0) {
-        return ParseResult::ok((int) $value);
-      }
-
-      return ParseResult::fail(
-        new Issue(
-          path: $path,
-          message: 'Expected integer, received float with decimal part',
-          code: 'invalid_type'
-        )
-      );
+      return is_finite($value)
+        ? ParseResult::fail($this->typeIssue('int', $input, $path))
+        : $this->nonFiniteIssue($value, $input, $path);
     }
 
-    if ($this->coerce && is_string($value) && is_numeric($value)) {
-      $value = (float) $value;
-
-      if (fmod($value, 1.0) !== 0.0) {
-        return ParseResult::fail(
-          new Issue(
-            path: $path,
-            message: 'Expected integer, received non-integer value',
-            code: 'invalid_type'
-          )
-        );
-      }
-
-      return ParseResult::ok((int) $value);
+    if ($this->coerce && is_string($value) && self::isOutOfRangeIntString($value)) {
+      return $this->outOfRangeIssue($input, $path);
     }
 
-    return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected integer, received ' . gettype($value),
-        code: 'invalid_type'
-      )
-    );
+    return ParseResult::fail($this->typeIssue('int', $input, $path));
+  }
+
+  /**
+   * Overflow needs at least 19 digits, and whitespace or a sign only make the raw string longer.
+   */
+  private static function isOutOfRangeIntString(string $value): bool {
+    if (strlen($value) < 19) {
+      return false;
+    }
+
+    $trimmed = trim($value);
+
+    return preg_match(self::INT_PATTERN, $trimmed) === 1 && self::toExactInt($trimmed) === null;
+  }
+
+  /**
+   * @param string[] $path
+   */
+  private function outOfRangeIssue(mixed $input, array $path): ParseResult {
+    return ParseResult::fail($this->typeIssue('int', $input, $path, 'number outside the int range'));
   }
 }

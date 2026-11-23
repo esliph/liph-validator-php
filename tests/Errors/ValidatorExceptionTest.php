@@ -77,6 +77,15 @@ class ValidatorExceptionTest extends TestCase {
     $this->assertStringContainsString('Root error', $message);
   }
 
+  public function test_construct_WithIssueAtFirstListIndex_ShouldShowIndexInsteadOfRoot(): void {
+    $issue = new Issue([0], 'Item error', 'invalid_type');
+
+    $exception = new ValidatorException([$issue]);
+
+    $this->assertStringContainsString('[0] Item error', $exception->getMessage());
+    $this->assertStringNotContainsString('(root)', $exception->getMessage());
+  }
+
   public function test_getIssues_ShouldReturnAllStoredIssues(): void {
     $issues = [
       new Issue(['field1'], 'Error 1', 'CODE_001'),
@@ -185,6 +194,26 @@ class ValidatorExceptionTest extends TestCase {
 
     $this->assertArrayHasKey('', $messages);
     $this->assertArrayHasKey('field', $messages);
+  }
+
+  public function test_getMessagesByPath_WithInterleavedPaths_ShouldKeepFirstOccurrenceOrder(): void {
+    $exception = new ValidatorException([
+      new Issue(path: ['a'], message: '1', code: 'custom'),
+      new Issue(path: ['b'], message: '2', code: 'custom'),
+      new Issue(path: ['a'], message: '3', code: 'custom'),
+    ]);
+
+    $this->assertSame(['a' => ['1', '3'], 'b' => ['2']], $exception->getMessagesByPath());
+  }
+
+  public function test_getMessagesByPath_WithNumericPaths_ShouldKeepFirstOccurrenceOrder(): void {
+    $exception = new ValidatorException([
+      new Issue(path: ['1'], message: 'x', code: 'custom'),
+      new Issue(path: ['0'], message: 'y', code: 'custom'),
+      new Issue(path: ['1'], message: 'z', code: 'custom'),
+    ]);
+
+    $this->assertSame([1 => ['x', 'z'], 0 => ['y']], $exception->getMessagesByPath());
   }
 
   public function test_getFlatMessages_WithoutIssues_ShouldReturnEmptyArray(): void {
@@ -380,7 +409,7 @@ class ValidatorExceptionTest extends TestCase {
   }
 
   public function test_toJson_WithUnicodeCharacters_ShouldPreserveUnicode(): void {
-    $issue = new Issue(['field'], 'Campo obrigatório: 日本語 🚀', 'UNICODE_001');
+    $issue = new Issue(['field'], 'Required field: 日本語 🚀', 'UNICODE_001');
 
     $exception = new ValidatorException([$issue]);
     $json = $exception->toJson();
@@ -389,7 +418,7 @@ class ValidatorExceptionTest extends TestCase {
     $this->assertStringContainsString('🚀', $json);
 
     $decoded = json_decode($json, true);
-    $this->assertSame('Campo obrigatório: 日本語 🚀', $decoded[0]['message']);
+    $this->assertSame('Required field: 日本語 🚀', $decoded[0]['message']);
   }
 
   public function test_toJson_WithSpecialJsonCharacters_ShouldEscapeCorrectly(): void {

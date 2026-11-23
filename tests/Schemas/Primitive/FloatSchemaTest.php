@@ -3,6 +3,7 @@
 namespace Esliph\Validator\Tests\Schemas\Primitive;
 
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 use Esliph\Validator\Schemas\Primitive\FloatSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
@@ -15,8 +16,20 @@ class FloatSchemaTest extends NumberSchemaTestCase {
   }
 
   #[Override]
+  protected function expectedTypeLabel(): string {
+    return 'float';
+  }
+
+  #[Override]
   protected function getValidValue(): mixed {
     return 3.14;
+  }
+
+  public function test_parseType_WithString_ShouldDescribeExpectedFloat(): void {
+    $result = (new FloatSchema())->safeParse('abc');
+
+    $this->assertSame('invalid_type', $result->issues[0]->code);
+    $this->assertSame('Expected float, received string', $result->issues[0]->message);
   }
 
   #[Override]
@@ -67,25 +80,25 @@ class FloatSchemaTest extends NumberSchemaTestCase {
     $this->assertIsFloat($result->data);
   }
 
-  public function test_parseType_WithInfinity_ShouldAccept(): void {
+  public function test_parseType_WithInfinity_ShouldReject(): void {
     $result = (new FloatSchema())->safeParse(INF);
 
-    $this->assertTrue($result->success);
-    $this->assertTrue(is_infinite($result->data));
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received INF', $result->issues[0]->message);
   }
 
-  public function test_parseType_WithNegativeInfinity_ShouldAccept(): void {
+  public function test_parseType_WithNegativeInfinity_ShouldReject(): void {
     $result = (new FloatSchema())->safeParse(-INF);
 
-    $this->assertTrue($result->success);
-    $this->assertTrue(is_infinite($result->data));
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received -INF', $result->issues[0]->message);
   }
 
-  public function test_parseType_WithNaN_ShouldAccept(): void {
+  public function test_parseType_WithNaN_ShouldReject(): void {
     $result = (new FloatSchema())->safeParse(NAN);
 
-    $this->assertTrue($result->success);
-    $this->assertTrue(is_nan($result->data));
+    $this->assertFalse($result->success);
+    $this->assertSame('Expected finite number, received NAN', $result->issues[0]->message);
   }
 
   public function test_parseType_WithString_ShouldReject(): void {
@@ -272,5 +285,50 @@ class FloatSchemaTest extends NumberSchemaTestCase {
     $result = $schema->safeParse('1.5e2');
 
     $this->assertTrue($result->success);
+  }
+
+  /**
+   * @return array<string, array{string, float}>
+   */
+  public static function provideFloatGrammarStrings(): array {
+    return [
+      'spaces' => [' 1 ', 1.0],
+      'plus_sign' => ['+1', 1.0],
+      'leading_zeros' => ['007', 7.0],
+      'leading_dot' => ['.5', 0.5],
+      'exponent' => ['1e3', 1000.0],
+      'negative_exponent' => ['-2.5E-1', -0.25],
+      'beyond_int_range' => ['99999999999999999999', 1.0E20],
+    ];
+  }
+
+  #[DataProvider('provideFloatGrammarStrings')]
+  public function test_coerce_WithFloatGrammarString_ShouldCoerceToFloat(string $input, float $expected): void {
+    $result = (new FloatSchema())->coerce()->safeParse($input);
+
+    $this->assertTrue($result->success);
+    $this->assertSame($expected, $result->data);
+  }
+
+  public function test_coerce_WithNegativeZeroString_ShouldKeepSign(): void {
+    $result = (new FloatSchema())->coerce()->safeParse('-0');
+
+    $this->assertTrue($result->success);
+    $this->assertSame(-INF, fdiv(1, $result->data));
+  }
+
+  public function test_coerce_WithOverflowingExponentString_ShouldFailNotFiniteWithOriginalInClosure(): void {
+    $received = null;
+    $schema = (new FloatSchema())->coerce()->messages([
+      'not_finite' => function (mixed $value, array $params) use (&$received): string {
+        $received = [$value, $params];
+        return 'custom';
+      },
+    ]);
+
+    $result = $schema->safeParse('1e400');
+
+    $this->assertSame('not_finite', $result->issues[0]->code);
+    $this->assertSame(['1e400', []], $received);
   }
 }

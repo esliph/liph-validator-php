@@ -4,31 +4,39 @@ namespace Esliph\Validator\Schemas\Primitive;
 
 use Override;
 
-use Esliph\Validator\Errors\Issue;
 use Esliph\Validator\Results\ParseResult;
 
 class FloatSchema extends NumberSchema {
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function coerceInput(mixed $value): mixed {
+    if (!is_string($value)) {
+      return $value;
+    }
+
+    $trimmed = trim($value);
+
+    if ($trimmed === '') {
+      return null;
+    }
+
+    if (preg_match(self::FLOAT_PATTERN, $trimmed) === 1) {
+      return (float) $trimmed;
+    }
+
+    return $value;
+  }
+
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if (is_float($value)) {
-      return ParseResult::ok($value);
+      return is_finite($value) ? ParseResult::ok($value) : $this->nonFiniteIssue($value, $input, $path);
     }
 
     if (is_int($value)) {
       return ParseResult::ok((float) $value);
     }
 
-    if ($this->coerce && is_string($value) && is_numeric($value)) {
-      return ParseResult::ok((float) $value);
-    }
-
-    return ParseResult::fail(
-      new Issue(
-        path: $path,
-        message: 'Expected float, received ' . gettype($value),
-        code: 'invalid_type'
-      )
-    );
+    return ParseResult::fail($this->typeIssue('float', $input, $path));
   }
 }

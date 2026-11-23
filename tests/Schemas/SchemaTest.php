@@ -7,10 +7,14 @@ use Closure;
 use Esliph\Validator\Errors\Issue;
 use PHPUnit\Framework\TestCase;
 
+use Esliph\Validator\Schemas\CoercibleSchema;
 use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Errors\ValidatorException;
+use InvalidArgumentException;
+use Esliph\Validator\V;
 use Override;
+use RuntimeException;
 
 class TestSchema extends Schema {
 
@@ -25,7 +29,7 @@ class TestSchema extends Schema {
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
     if ($this->checkType === null) {
       return ParseResult::ok($value);
     }
@@ -53,9 +57,39 @@ class SchemaTest extends TestCase {
     $this->assertNotSame($schema, $cloned);
   }
 
-  public function test_clone_WithRules_ShouldCloneAllRules(): void {
-    $check1 = fn(mixed $value, array $params) => strlen($value) > 3;
-    $check2 = fn(mixed $value, array $params) => strlen($value) < 20;
+  public function test_messages_WithUnknownCode_ShouldListBaseCodesInOrder(): void {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage("Unknown message code 'nope'; allowed: required, invalid_type");
+
+    (new TestSchema())->messages(['nope' => 'x']);
+  }
+
+  public function test_messages_WithEmptyArray_ShouldKeepDefaultMessages(): void {
+    $result = (new TestSchema())->messages([])->safeParse(null);
+
+    $this->assertSame('Value is required', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithClosureReturningInt_ShouldCastToString(): void {
+    /** @phpstan-ignore argument.type */
+    $schema = (new TestSchema())->messages([
+      'required' => fn(mixed $value, array $params): int => 42,
+    ]);
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame('42', $result->issues[0]->message);
+  }
+
+  public function test_messages_WithStringContainingPlaceholders_ShouldKeepItLiteral(): void {
+    $result = (new TestSchema())->messages(['required' => '{received} %s'])->safeParse(null);
+
+    $this->assertSame('{received} %s', $result->issues[0]->message);
+  }
+
+  public function test_clone_WithRules_ShouldCreateNewInstance(): void {
+    $check1 = fn(mixed $value) => strlen($value) > 3;
+    $check2 = fn(mixed $value) => strlen($value) < 20;
 
     $schema = new TestSchema();
     $schema = $schema->refine($check1, 'Too short');
@@ -66,7 +100,7 @@ class SchemaTest extends TestCase {
     $this->assertNotSame($schema, $cloned);
   }
 
-  public function test_clone_WithTransforms_ShouldResetTransformKeys(): void {
+  public function test_clone_WithTransforms_ShouldCreateNewInstance(): void {
     $schema = new TestSchema();
     $schema = $schema->transform(fn($v) => strtoupper($v));
     $schema = $schema->transform(fn($v) => trim($v));
@@ -86,6 +120,19 @@ class SchemaTest extends TestCase {
     $cloned = clone $schema;
 
     $this->assertNotSame($schema->safeParse(null)->data, $cloned->safeParse(null)->data);
+  }
+
+  public function test_fluentDerivation_WithObjectDefault_ShouldGiveEachParseItsOwnCopy(): void {
+    $default = (object) ['value' => 'test'];
+    $base = (new TestSchema())->_default($default);
+    $derived = $base->optional();
+
+    $first = $base->safeParse(null)->data;
+    $first->value = 'mutated';
+
+    $this->assertSame('test', $derived->safeParse(null)->data->value);
+    $this->assertSame('test', $base->safeParse(null)->data->value);
+    $this->assertNotSame($default, $first);
   }
 
   public function test_parse_WithNullRequired_ShouldThrowValidatorException(): void {
@@ -108,7 +155,7 @@ class SchemaTest extends TestCase {
 
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => strlen($v) > 10,
+      fn(mixed $v) => strlen($v) > 10,
       'Must be longer than 10 characters'
     );
 
@@ -124,7 +171,7 @@ class SchemaTest extends TestCase {
   public function test_isValid_WithInvalidValue_ShouldReturnFalse(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => strlen($v) > 10
+      fn(mixed $v) => strlen($v) > 10
     );
 
     $this->assertFalse($schema->isValid('short'));
@@ -149,7 +196,7 @@ class SchemaTest extends TestCase {
   public function test_safeParse_WithInvalidValue_ShouldReturnFailureResult(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(
-      fn(mixed $v, array $p) => false,
+      fn(mixed $v) => false,
       'Validation failed'
     );
 
@@ -429,14 +476,14 @@ class SchemaTest extends TestCase {
     $this->assertSame('Invalid value: test', $result->issues[0]->message);
   }
 
-  public function test_refine_WithNullMessage_ShouldUseEmptyString(): void {
+  public function test_refine_WithNullMessage_ShouldUseDefaultMessage(): void {
     $schema = new TestSchema();
     $schema = $schema->refine(fn(mixed $v) => false, null);
 
     $result = $schema->safeParse('test');
 
     $this->assertFalse($result->success);
-    $this->assertSame('', $result->issues[0]->message);
+    $this->assertSame('Invalid value', $result->issues[0]->message);
   }
 
   public function test_optional_ShouldMarkSchemaAsOptional(): void {
@@ -501,6 +548,19 @@ class SchemaTest extends TestCase {
     $result = $schema->safeParse(null);
 
     $this->assertSame($default, $result->data);
+  }
+
+  public function test_default_WithObjectValue_ShouldReturnFreshCopyOnEachParse(): void {
+    $default = (object) ['tags' => 'a'];
+    $schema = (new TestSchema())->_default($default);
+
+    $first = $schema->safeParse(null)->data;
+    $first->tags = 'mutated';
+    $second = $schema->safeParse(null)->data;
+
+    $this->assertNotSame($first, $second);
+    $this->assertNotSame($default, $second);
+    $this->assertSame('a', $second->tags);
   }
 
   public function test_isAssociativeArray_WithEmptyArray_ShouldReturnFalse(): void {
@@ -750,5 +810,249 @@ class SchemaTest extends TestCase {
       $result1->data->value = 'modified';
       $this->assertNotSame($result1->data->value, $result2->data->value);
     }
+  }
+
+  public function test_acceptsNull_WithNull_ShouldReachParseType(): void {
+    $schema = $this->nullAcceptingSchema();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('reached parseType', $result->data);
+  }
+
+  public function test_acceptsNull_WithDefault_ShouldResolveDefaultFirst(): void {
+    $schema = $this->nullAcceptingSchema()->_default('fallback');
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertSame('fallback', $result->data);
+  }
+
+  public function test_acceptsNull_WithOptional_ShouldReturnNullBeforeParseType(): void {
+    $schema = $this->nullAcceptingSchema()->optional();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_nullHandling_WithNullAndNoOptions_ShouldReturnCleanResult(): void {
+    $schema = new TestSchema();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertFalse($result->dirty);
+  }
+
+  public function test_validateRules_WithFailingRule_ShouldReturnDirtyResult(): void {
+    $schema = (new TestSchema())->refine(fn(mixed $v): bool => false);
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($result->success);
+    $this->assertTrue($result->dirty);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('custom', $result->issues[0]->code);
+  }
+
+  public function test_validateType_WithFailure_ShouldReturnDirtyResult(): void {
+    $schema = new TestSchema(
+      checkValid: static fn(mixed $value, array $path): ParseResult => ParseResult::fail(
+        new Issue(path: $path, message: 'Invalid value', code: 'invalid_type')
+      )
+    );
+
+    $result = $schema->safeParse(1);
+
+    $this->assertTrue($result->dirty);
+    $this->assertCount(1, $result->issues);
+    $this->assertSame('Invalid value', $result->issues[0]->message);
+  }
+
+  public function test_validateType_WithDirtyFailure_ShouldReturnSameInstance(): void {
+    $dirty = ParseResult::dirty([new Issue(path: [], message: 'Invalid value', code: 'too_small')]);
+    $schema = new TestSchema(
+      checkValid: static fn(mixed $value, array $path): ParseResult => $dirty
+    );
+
+    $this->assertSame($dirty, $schema->safeParse(1));
+  }
+
+  public function test_parseType_WithFailure_ShouldReturnCleanResult(): void {
+    $schema = new TestSchema(
+      checkType: static fn(mixed $value, array $path): ParseResult => ParseResult::fail(
+        new Issue(path: $path, message: 'Invalid type', code: 'invalid_type')
+      )
+    );
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($result->dirty);
+  }
+
+  public function test_parseType_WithDirtyFailure_ShouldReturnSameInstance(): void {
+    $dirty = ParseResult::dirty([new Issue(path: [], message: 'Invalid value', code: 'too_small')]);
+    $schema = new TestSchema(
+      checkType: static fn(mixed $value, array $path): ParseResult => $dirty
+    );
+
+    $this->assertSame($dirty, $schema->safeParse(1));
+  }
+
+  private function nullAcceptingSchema(): Schema {
+    return new class extends Schema {
+
+      #[Override]
+      protected function acceptsNull(): bool {
+        return true;
+      }
+
+      #[Override]
+      protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
+        return ParseResult::ok($value ?? 'reached parseType');
+      }
+    };
+  }
+
+  public function test_safeParse_WithThrowingRefineCheck_ShouldPropagateException(): void {
+    $schema = V::string()->refine(fn(mixed $v): bool => throw new RuntimeException('boom'));
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('boom');
+
+    $schema->safeParse('a');
+  }
+
+  public function test_isValid_WithThrowingTransform_ShouldPropagateException(): void {
+    $schema = V::string()->transform(fn(mixed $v): mixed => throw new RuntimeException('boom'));
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('boom');
+
+    $schema->isValid('a');
+  }
+
+  /**
+   * @param Closure(mixed): mixed $coerce
+   */
+  private function coercionProbe(Closure $coerce): CoercibleSchema {
+    return new class($coerce) extends CoercibleSchema {
+
+      public function __construct(private Closure $coerceWith) {
+      }
+
+      #[Override]
+      protected function coerceInput(mixed $value): mixed {
+        return ($this->coerceWith)($value);
+      }
+
+      #[Override]
+      protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
+        return ParseResult::ok(['value' => $value, 'input' => $input]);
+      }
+    };
+  }
+
+  public function test_coerceInput_WithNull_ShouldNotBeCalled(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return $v; })->coerce();
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_coerceInput_WithNullAndDefault_ShouldNotCoerceDefault(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return $v; })
+      ->coerce()->_default('fallback');
+
+    $result = $schema->safeParse(null);
+
+    $this->assertSame(['value' => 'fallback', 'input' => 'fallback'], $result->data);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_coerceInput_WithoutCoerce_ShouldNotBeCalled(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return 'cooked'; });
+
+    $result = $schema->safeParse('raw');
+
+    $this->assertSame(['value' => 'raw', 'input' => 'raw'], $result->data);
+    $this->assertSame([], $calls);
+  }
+
+  public function test_parseType_WithCoercedValue_ShouldReceiveOriginalAsInput(): void {
+    $schema = $this->coercionProbe(fn(mixed $v): mixed => 'cooked')->coerce();
+
+    $result = $schema->safeParse('raw');
+
+    $this->assertSame(['value' => 'cooked', 'input' => 'raw'], $result->data);
+  }
+
+  public function test_coerceInput_ReturningNull_ShouldFailRequiredWithOriginalInClosure(): void {
+    $received = 'not called';
+    $schema = $this->coercionProbe(fn(mixed $v): mixed => null)->coerce()->messages([
+      'required' => function (mixed $value) use (&$received): string { $received = $value; return 'vazio'; },
+    ]);
+
+    $result = $schema->safeParse('  ');
+
+    $this->assertSame('required', $result->issues[0]->code);
+    $this->assertSame('vazio', $result->issues[0]->message);
+    $this->assertSame('  ', $received);
+  }
+
+  public function test_coerceInput_ReturningNullWithOptional_ShouldSucceedWithNull(): void {
+    $result = $this->coercionProbe(fn(mixed $v): mixed => null)->coerce()->optional()->safeParse('x');
+
+    $this->assertTrue($result->success);
+    $this->assertNull($result->data);
+  }
+
+  public function test_coerceInput_ReturningNullWithDefault_ShouldUseUncoercedDefaultAsInput(): void {
+    $calls = [];
+    $schema = $this->coercionProbe(function (mixed $v) use (&$calls): mixed { $calls[] = $v; return null; })
+      ->coerce()->_default('fallback');
+
+    $result = $schema->safeParse('x');
+
+    $this->assertSame(['value' => 'fallback', 'input' => 'fallback'], $result->data);
+    $this->assertSame(['x'], $calls);
+  }
+
+  public function test_validateRules_AfterValidateType_ShouldReceiveChildOutput(): void {
+    $received = null;
+    $schema = (new TestSchema(checkValid: static fn(mixed $v, array $p): ParseResult => ParseResult::ok('child')))
+      ->refine(function (mixed $v) use (&$received): bool {
+        $received = $v;
+
+        return true;
+      });
+
+    $this->assertSame('child', $schema->parse('raw'));
+    $this->assertSame('child', $received);
+  }
+
+  public function test_validateRules_WhenValidateTypeFails_ShouldNotRun(): void {
+    $called = false;
+    $schema = (new TestSchema(checkValid: static fn(mixed $v, array $p): ParseResult => ParseResult::fail(
+      new Issue(path: $p, message: 'child', code: 'invalid_type')
+    )))->refine(function (mixed $v) use (&$called): bool {
+      $called = true;
+
+      return false;
+    });
+
+    $result = $schema->safeParse(1);
+
+    $this->assertFalse($called);
+    $this->assertTrue($result->dirty);
+    $this->assertSame(['child'], array_map(fn(Issue $i): string => $i->message, $result->issues));
   }
 }

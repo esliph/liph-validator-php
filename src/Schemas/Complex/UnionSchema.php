@@ -4,42 +4,77 @@ namespace Esliph\Validator\Schemas\Complex;
 
 use Esliph\Validator\Results\ParseResult;
 use Esliph\Validator\Schemas\Schema;
+use InvalidArgumentException;
 use Override;
 
 final class UnionSchema extends Schema {
 
+  /** @var list<Schema> */
+  protected array $schemas;
+
   /**
    * @param Schema[] $schemas
+   *
+   * @throws InvalidArgumentException with fewer than 2 options
    */
-  public function __construct(
-    protected array $schemas = []
-  ) {
-    $this->schemas = $schemas;
+  public function __construct(array $schemas = []) {
+    if (count($schemas) < 2) {
+      throw new InvalidArgumentException('union must have at least 2 options');
+    }
+
+    $this->schemas = array_values($schemas);
   }
 
-  public function __clone(): void {
-    parent::__clone();
-
-    $this->schemas = array_map(
-      static fn(Schema $schema): Schema => clone $schema,
-      $this->schemas
-    );
+  /**
+   * @return list<Schema>
+   */
+  public function getOptions(): array {
+    return $this->schemas;
   }
 
   #[Override]
-  protected function parseType(mixed $value, array $path = []): ParseResult {
-    $issues = [];
+  protected static function messageCodes(): array {
+    return ['required', 'invalid_union'];
+  }
+
+  /**
+   * `null` goes on to the options, and each one decides with its own `optional()`,
+   * default or `V::null()`.
+   */
+  #[Override]
+  protected function acceptsNull(): bool {
+    return true;
+  }
+
+  /**
+   * The first option that passes wins. If none passes: `required` for `null`;
+   * otherwise the result of the first dirty option, which recognized the type and failed on a
+   * rule or a child; otherwise a single `invalid_union`.
+   */
+  #[Override]
+  protected function parseType(mixed $value, array $path, mixed $input): ParseResult {
+    $firstDirty = null;
 
     foreach ($this->schemas as $schema) {
       $result = $schema->_parse($value, $path);
 
       if ($result->success) {
-        return ParseResult::ok($result->data);
+        return $result;
       }
 
-      $issues = array_merge($issues, $result->issues);
+      if ($firstDirty === null && $result->dirty) {
+        $firstDirty = $result;
+      }
     }
 
-    return ParseResult::fails($issues);
+    if ($value === null) {
+      return ParseResult::fail($this->issue('required', 'Value is required', $value, $path));
+    }
+
+    if ($firstDirty !== null) {
+      return $firstDirty;
+    }
+
+    return ParseResult::fail($this->issue('invalid_union', 'Invalid input', $value, $path));
   }
 }
