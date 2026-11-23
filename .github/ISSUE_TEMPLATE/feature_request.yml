@@ -1,0 +1,18 @@
+name: Feature request
+description: Propose a new capability or a change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that the library does not support well?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work? Sample usage helps.
+    validations:
+      required: true
