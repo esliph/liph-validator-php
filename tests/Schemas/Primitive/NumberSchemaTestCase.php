@@ -25,7 +25,7 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
   abstract protected function createNumberSchema(): NumberSchema;
 
   /**
-   * Rótulo do tipo esperado, como aparece no texto e no param `expected`.
+   * Label of the expected type, as it appears in the text and in the `expected` param.
    */
   abstract protected function expectedTypeLabel(): string;
 

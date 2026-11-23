@@ -173,7 +173,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    // Nenhuma string do provider é um JSON que decodifica para array.
+    // No provider string is a JSON that decodes to an array.
     $shouldBeValid = is_array($value) && array_is_list($value);
 
     if ($shouldBeValid) {
@@ -786,7 +786,7 @@ class ArraySchemaTest extends BaseCoercibleSchemaTestCase {
   }
 
   public function test_length_WithWrongLength_ShouldFailWithInvalidLengthCode(): void {
-    // Mesmo código de StringSchema::length.
+    // Same code as StringSchema::length.
     $schema = (new ArraySchema())->length(2);
 
     $tooShort = $schema->safeParse([1]);

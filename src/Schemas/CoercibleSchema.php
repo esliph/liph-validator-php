@@ -16,8 +16,8 @@ abstract class CoercibleSchema extends Schema {
   }
 
   /**
-   * Devolve o JSON decodificado (objetos como stdClass), ou a string original
-   * se ela aparada não começar por `$opening` ou o JSON for inválido.
+   * Returns the decoded JSON (objects as stdClass), or the original string
+   * if its trimmed form does not start with `$opening` or the JSON is invalid.
    */
   protected static function decodeJson(string $value, string $opening): mixed {
     $trimmed = trim($value);

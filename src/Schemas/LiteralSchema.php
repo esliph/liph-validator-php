@@ -8,13 +8,13 @@ use Override;
 use UnitEnum;
 
 /**
- * Aceita só o valor dado, comparado com `===`: `literal(1)` rejeita `1.0` e
- * `'1'`, e um case de enum só casa com ele mesmo.
+ * Accepts only the given value, compared with `===`: `literal(1)` rejects `1.0` and
+ * `'1'`, and an enum case only matches itself.
  */
 final class LiteralSchema extends Schema {
 
   /**
-   * @throws InvalidArgumentException se o valor for `NAN`, que nunca casaria com nada
+   * @throws InvalidArgumentException if the value is `NAN`, which would never match anything
    */
   public function __construct(
     private readonly string|int|float|bool|null|UnitEnum $value

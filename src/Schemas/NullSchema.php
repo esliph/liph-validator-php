@@ -6,8 +6,8 @@ use Esliph\Validator\Results\ParseResult;
 use Override;
 
 /**
- * Aceita só `null`. Um default não nulo substitui o `null` antes da checagem
- * de tipo, então `V::null()->_default(5)` sempre falha.
+ * Accepts only `null`. A non-null default replaces the `null` before the type
+ * check, so `V::null()->_default(5)` always fails.
  */
 final class NullSchema extends Schema {
 

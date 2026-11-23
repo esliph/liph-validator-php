@@ -47,7 +47,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * Recebe uma string que casa com INT_PATTERN e devolve o int exato, ou null se não couber.
+   * Receives a string that matches INT_PATTERN and returns the exact int, or null if it does not fit.
    */
   protected static function toExactInt(string $trimmed): ?int {
     $int = (int) $trimmed;
@@ -77,8 +77,8 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * `$value` é o float não finito que vai no texto; `$input`, o valor original
-   * de entrada, que vai para a Closure de mensagem.
+   * `$value` is the non-finite float that goes into the text; `$input` is the original input
+   * value, which goes to the message Closure.
    *
    * @param string[] $path
    */
@@ -89,7 +89,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function min(int|float $min, string|Closure|null $message = null): static {
     self::assertFiniteBound($min, 'min');
@@ -104,7 +104,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function max(int|float $max, string|Closure|null $message = null): static {
     self::assertFiniteBound($max, 'max');
@@ -119,7 +119,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function gt(int|float $min, string|Closure|null $message = null): static {
     self::assertFiniteBound($min, 'gt');
@@ -134,7 +134,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function gte(int|float $min, string|Closure|null $message = null): static {
     self::assertFiniteBound($min, 'gte');
@@ -149,7 +149,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function lt(int|float $max, string|Closure|null $message = null): static {
     self::assertFiniteBound($max, 'lt');
@@ -164,7 +164,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   public function lte(int|float $max, string|Closure|null $message = null): static {
     self::assertFiniteBound($max, 'lte');
@@ -219,10 +219,10 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * Vira duas regras, `between_min` (`too_small`) e `between_max` (`too_big`),
-   * com os dois limites em params e a mesma mensagem.
+   * Becomes two rules, `between_min` (`too_small`) and `between_max` (`too_big`),
+   * with both bounds in params and the same message.
    *
-   * @throws InvalidArgumentException se algum limite não for finito ou se min > max
+   * @throws InvalidArgumentException if any bound is not finite or if min > max
    */
   public function between(int|float $min, int|float $max, string|Closure|null $message = null): static {
     self::assertFiniteBound($min, 'between');
@@ -253,7 +253,7 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o limite não for finito
+   * @throws InvalidArgumentException if the bound is not finite
    */
   private static function assertFiniteBound(int|float $n, string $method): void {
     if (!is_finite($n)) {
@@ -262,11 +262,11 @@ class NumberSchema extends CoercibleSchema {
   }
 
   /**
-   * Com operandos float, aceita o valor quando o quociente fica a menos de
-   * MULTIPLE_OF_TOLERANCE de um inteiro (0.3 é múltiplo de 0.1). Quocientes
-   * acima de ~1e7 podem dar falso negativo por perda de precisão do float.
+   * With float operands, accepts the value when the quotient is within
+   * MULTIPLE_OF_TOLERANCE of an integer (0.3 is a multiple of 0.1). Quotients
+   * above ~1e7 may give a false negative from float precision loss.
    *
-   * @throws InvalidArgumentException se o divisor não for finito e maior que zero
+   * @throws InvalidArgumentException if the divisor is not finite and greater than zero
    */
   public function multipleOf(int|float $divisor, string|Closure|null $message = null): static {
     if (!is_finite($divisor) || $divisor <= 0) {

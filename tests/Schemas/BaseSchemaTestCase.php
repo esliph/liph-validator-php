@@ -143,8 +143,8 @@ abstract class BaseSchemaTestCase extends TestCase {
   }
 
   /**
-   * Código que o schema emite e uma entrada que o dispara, usados pelos testes
-   * de `messages()` que não dependem do `required`.
+   * Code the schema emits and an input that triggers it, used by the
+   * `messages()` tests that do not depend on `required`.
    *
    * @return array{string, mixed}
    */
@@ -202,7 +202,7 @@ abstract class BaseSchemaTestCase extends TestCase {
   }
 
   /**
-   * Falso nos schemas que não emitem `invalid_type` (Mixed, Literal, Enum, Union).
+   * False for schemas that do not emit `invalid_type` (Mixed, Literal, Enum, Union).
    */
   protected function emitsInvalidType(): bool {
     return true;
@@ -223,7 +223,7 @@ abstract class BaseSchemaTestCase extends TestCase {
 
     $issue = $result->issues[0] ?? null;
 
-    // Issues de filhos (path não vazio) usam as mensagens dos próprios filhos.
+    // Issues from children (non-empty path) use the children's own messages.
     if ($issue === null || $issue->code !== 'invalid_type' || $issue->path !== []) {
       $this->expectNotToPerformAssertions();
       return;

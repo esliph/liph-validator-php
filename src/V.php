@@ -68,7 +68,7 @@ final class V {
   /**
    * @param array<string|int, Schema> $shape
    *
-   * @throws InvalidArgumentException se algum valor do shape não for Schema
+   * @throws InvalidArgumentException if any shape value is not a Schema
    */
   public static function object(array $shape = []): ObjectSchema {
     return new ObjectSchema(shape: $shape);
@@ -79,7 +79,7 @@ final class V {
   }
 
   /**
-   * @throws InvalidArgumentException com menos de 2 opções
+   * @throws InvalidArgumentException with fewer than 2 options
    */
   public static function union(Schema ...$schemas): UnionSchema {
     return new UnionSchema(schemas: $schemas);

@@ -10,15 +10,15 @@ use LogicException;
 use Override;
 
 /**
- * `refine`/`transform` do objeto recebem o `stdClass` de saída: com defaults,
- * coerção e transforms dos campos aplicados, sem as chaves descartadas pelo
- * `strip` e sem os opcionais ausentes, que devem ser lidos com `??`.
+ * The object's `refine`/`transform` receive the output `stdClass`: with defaults,
+ * coercion and field transforms applied, without the keys dropped by
+ * `strip` and without the absent optionals, which must be read with `??`.
  *
- * Os campos são lidos por `get_object_vars`: só propriedades públicas
- * inicializadas contam, e o que existe apenas via `__get` não é lido. Objetos
- * `Traversable` (`ArrayObject`...) não são iterados: as entradas do iterador
- * não contam como campos nem como chaves desconhecidas, então o `strict` não as
- * recusa e o `passthrough` não as copia.
+ * Fields are read through `get_object_vars`: only initialized public
+ * properties count, and whatever exists only through `__get` is not read.
+ * `Traversable` objects (`ArrayObject`...) are not iterated: the iterator's entries
+ * count neither as fields nor as unknown keys, so `strict` does not
+ * reject them and `passthrough` does not copy them.
  */
 final class ObjectSchema extends CoercibleSchema {
 
@@ -29,7 +29,7 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param array<string|int, Schema> $shape
    *
-   * @throws InvalidArgumentException se algum valor do shape não for Schema
+   * @throws InvalidArgumentException if any shape value is not a Schema
    */
   public function __construct(
     protected array $shape = []
@@ -88,7 +88,7 @@ final class ObjectSchema extends CoercibleSchema {
       $result = $schema->_parse($exists ? $props[$key] : null, array_merge($path, [$key]));
 
       if (!$result->success) {
-        // Sem array_merge: ele copia a lista acumulada a cada filho e fica quadrático no total de issues.
+        // No array_merge: it copies the accumulated list for every child and becomes quadratic in the total number of issues.
         array_push($issues, ...$result->issues);
       } elseif ($exists || $result->data !== null) {
         $parsedValue->$key = $result->data;
@@ -136,8 +136,8 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param array<string|int, Schema> $shape
    *
-   * @throws InvalidArgumentException se algum valor do shape não for Schema
-   * @throws LogicException depois de refine() ou transform()
+   * @throws InvalidArgumentException if any shape value is not a Schema
+   * @throws LogicException after refine() or transform()
    */
   public function shape(array $shape): static {
     self::assertShape($shape);
@@ -146,12 +146,12 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * Segue a ordem do shape, não a de `$keys`.
+   * Follows the shape's order, not that of `$keys`.
    *
    * @param string[] $keys
    *
-   * @throws InvalidArgumentException se alguma chave não estiver no shape
-   * @throws LogicException depois de refine() ou transform()
+   * @throws InvalidArgumentException if any key is not in the shape
+   * @throws LogicException after refine() or transform()
    */
   public function pick(array $keys): static {
     $this->assertKnownKeys($keys);
@@ -162,8 +162,8 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param string[] $keys
    *
-   * @throws InvalidArgumentException se alguma chave não estiver no shape
-   * @throws LogicException depois de refine() ou transform()
+   * @throws InvalidArgumentException if any key is not in the shape
+   * @throws LogicException after refine() or transform()
    */
   public function omit(array $keys): static {
     $this->assertKnownKeys($keys);
@@ -174,8 +174,8 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param array<string|int, Schema> $shape
    *
-   * @throws InvalidArgumentException se algum valor do shape não for Schema
-   * @throws LogicException depois de refine() ou transform()
+   * @throws InvalidArgumentException if any shape value is not a Schema
+   * @throws LogicException after refine() or transform()
    */
   public function extend(array $shape): static {
     self::assertShape($shape);
@@ -184,8 +184,8 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws LogicException depois de refine() ou transform(), ou se `$other`
-   * tiver refine() ou transform(), que se perderiam no merge
+   * @throws LogicException after refine() or transform(), or if `$other`
+   * has refine() or transform(), which would be lost in the merge
    */
   public function merge(self $other): static {
     if ($other->hasRefineOrTransform()) {
@@ -196,7 +196,7 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws LogicException depois de refine() ou transform()
+   * @throws LogicException after refine() or transform()
    */
   public function partial(): static {
     $this->assertDerivable();
@@ -211,10 +211,10 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * Raso: só os campos opcionais são clonados; os demais entram no shape novo
-   * como a mesma instância.
+   * Shallow: only optional fields are cloned; the others enter the new shape
+   * as the same instance.
    *
-   * @throws LogicException depois de refine() ou transform()
+   * @throws LogicException after refine() or transform()
    */
   public function required(): static {
     $this->assertDerivable();
@@ -266,20 +266,20 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * É um transform: derivar o objeto depois dele (`pick`, `omit`, `extend`...)
-   * lança LogicException. Chame por último.
+   * It is a transform: deriving the object after it (`pick`, `omit`, `extend`...)
+   * throws LogicException. Call it last.
    */
   public function asArray(): static {
     return $this->transform(static fn(\stdClass $value): array => (array) $value);
   }
 
   /**
-   * As regras e transforms do objeto foram escritos para o shape antigo; por
-   * isso derivar depois de refine() ou transform() é recusado.
+   * The object's rules and transforms were written for the old shape; that is why
+   * deriving after refine() or transform() is refused.
    *
    * @param array<string|int, Schema> $shape
    *
-   * @throws LogicException depois de refine() ou transform()
+   * @throws LogicException after refine() or transform()
    */
   private function withShape(array $shape): static {
     $this->assertDerivable();
@@ -291,7 +291,7 @@ final class ObjectSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws LogicException depois de refine() ou transform()
+   * @throws LogicException after refine() or transform()
    */
   private function assertDerivable(): void {
     if ($this->hasRefineOrTransform()) {
@@ -316,7 +316,7 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param array<mixed> $shape
    *
-   * @throws InvalidArgumentException se algum valor do shape não for Schema
+   * @throws InvalidArgumentException if any shape value is not a Schema
    */
   private static function assertShape(array $shape): void {
     foreach ($shape as $key => $schema) {
@@ -329,7 +329,7 @@ final class ObjectSchema extends CoercibleSchema {
   /**
    * @param string[] $keys
    *
-   * @throws InvalidArgumentException se alguma chave não estiver no shape
+   * @throws InvalidArgumentException if any key is not in the shape
    */
   private function assertKnownKeys(array $keys): void {
     foreach ($keys as $key) {

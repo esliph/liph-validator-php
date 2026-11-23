@@ -194,8 +194,8 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse($value);
 
-    // Nenhuma string do provider é uma data válida ('123', '45.67', 'abc', '', '   '...);
-    // só inteiros (timestamps) e DateTimeInterface devem ser aceitos.
+    // No provider string is a valid date ('123', '45.67', 'abc', '', '   '...);
+    // only integers (timestamps) and DateTimeInterface must be accepted.
     $shouldSucceed = is_int($value) || $value instanceof DateTimeInterface;
 
     if ($shouldSucceed) {
@@ -323,7 +323,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse('2024-02-30');
 
-    // O PHP normalizaria para 2024-03-01 com um warning; o warning reprova a data.
+    // PHP would normalize it to 2024-03-01 with a warning; the warning rejects the date.
     $this->assertFalse($result->success);
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
@@ -445,7 +445,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse('2024-02-30');
 
-    // createFromFormat normalizaria para 2024-03-01 com um warning; o warning reprova a data.
+    // createFromFormat would normalize it to 2024-03-01 with a warning; the warning rejects the date.
     $this->assertFalse($result->success);
     $this->assertSame('invalid_date', $result->issues[0]->code);
   }
@@ -529,7 +529,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse(0);
 
-    // Comportamento atual (suspeito): o timezone configurado é ignorado na coerção de inteiros.
+    // Current behavior (suspect): the configured timezone is ignored when coercing integers.
     $this->assertTrue($result->success);
     $this->assertSame(0, $result->data->getTimestamp());
     $this->assertSame(date_default_timezone_get(), $result->data->getTimezone()->getName());
@@ -731,7 +731,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse(self::utc('2024-01-15'));
 
-    // `min` é inclusivo (>=), como NumberSchema::min e z.date().min do Zod.
+    // `min` is inclusive (>=), like NumberSchema::min and Zod's z.date().min.
     $this->assertTrue($result->success, 'min() must be inclusive: a date equal to the minimum is valid');
   }
 
@@ -771,7 +771,7 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
 
     $result = $schema->safeParse(self::utc('2024-01-15'));
 
-    // `max` é inclusivo (<=), como NumberSchema::max e z.date().max do Zod.
+    // `max` is inclusive (<=), like NumberSchema::max and Zod's z.date().max.
     $this->assertTrue($result->success, 'max() must be inclusive: a date equal to the maximum is valid');
   }
 

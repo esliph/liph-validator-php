@@ -61,7 +61,7 @@ final class DateSchema extends CoercibleSchema {
       return null;
     }
 
-    // Data impossível (ex.: 2024-02-30) só gera warning e seria normalizada para o mês seguinte.
+    // An impossible date (e.g. 2024-02-30) only raises a warning and would be normalized to the following month.
     if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
       return null;
     }
@@ -93,7 +93,7 @@ final class DateSchema extends CoercibleSchema {
   }
 
   /**
-   * Limite inclusivo (>=), como `NumberSchema::min`; `after` é o estrito.
+   * Inclusive bound (>=), like `NumberSchema::min`; `after` is the strict one.
    */
   public function min(DateTimeInterface|string|int $min, string|Closure|null $message = null): static {
     $minDate = $this->normalizeDate($min);
@@ -108,7 +108,7 @@ final class DateSchema extends CoercibleSchema {
   }
 
   /**
-   * Limite inclusivo (<=), como `NumberSchema::max`; `before` é o estrito.
+   * Inclusive bound (<=), like `NumberSchema::max`; `before` is the strict one.
    */
   public function max(DateTimeInterface|string|int $max, string|Closure|null $message = null): static {
     $maxDate = $this->normalizeDate($max);

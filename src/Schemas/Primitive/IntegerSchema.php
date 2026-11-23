@@ -47,7 +47,7 @@ class IntegerSchema extends NumberSchema {
   }
 
   /**
-   * Estouro exige pelo menos 19 dígitos, e espaço ou sinal só aumentam a string crua.
+   * Overflow needs at least 19 digits, and whitespace or a sign only make the raw string longer.
    */
   private static function isOutOfRangeIntString(string $value): bool {
     if (strlen($value) < 19) {

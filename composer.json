@@ -1,6 +1,6 @@
 {
   "name": "esliph/validator",
-  "description": "Uma biblioteca de validação de dados inspirada no Zod para PHP",
+  "description": "A Zod-inspired data validation library for PHP",
   "type": "library",
   "license": "MIT",
   "keywords": [

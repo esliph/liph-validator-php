@@ -8,13 +8,13 @@ use InvalidArgumentException;
 use Override;
 
 /**
- * Aceita um valor de uma lista de escalares ou um valor de backing de um
- * `BackedEnum`, devolvendo o case.
+ * Accepts a value from a list of scalars or a backing value of a
+ * `BackedEnum`, returning the case.
  *
- * A lista é buscada por tipo, mantendo a semântica de `===`: int num mapa de
- * ints, string num mapa de strings (a string numérica canônica vira chave int
- * no PHP, e a busca com `isset` aplica a mesma conversão), e bool/float num
- * `in_array` estrito sobre os poucos valores restantes.
+ * The list is searched by type, keeping the `===` semantics: int in a map of
+ * ints, string in a map of strings (the canonical numeric string becomes an int key
+ * in PHP, and the `isset` lookup applies the same conversion), and bool/float in a
+ * strict `in_array` over the few remaining values.
  */
 final class EnumSchema extends Schema {
 
@@ -30,14 +30,14 @@ final class EnumSchema extends Schema {
   private readonly ?string $enumClass;
   private readonly bool $intBacked;
   /**
-   * Montada uma vez: num union, a falha de uma opção-enum é comum e a
-   * mensagem é descartada, então não pode custar O(n) a cada parse.
+   * Built once: in a union, the failure of an enum option is common and the
+   * message is discarded, so it must not cost O(n) on every parse.
    */
   private readonly string $failureMessage;
 
   /**
    * @param list<string|int|float|bool>|array<string|int|float|bool>|class-string<BackedEnum> $values
-   * @throws InvalidArgumentException se a lista for vazia ou tiver um valor que não seja escalar finito, ou se a classe não for um enum com backing e cases
+   * @throws InvalidArgumentException if the list is empty or has a value that is not a finite scalar, or if the class is not an enum with a backing type and cases
    */
   public function __construct(array|string $values) {
     if (is_string($values)) {
@@ -107,8 +107,8 @@ final class EnumSchema extends Schema {
       return ParseResult::ok($value);
     }
 
-    // O `tryFrom` converte o tipo (`IntBacked::tryFrom('1')` acha o case) e
-    // lança `TypeError` para arrays e objetos, então o tipo é checado antes.
+    // `tryFrom` converts the type (`IntBacked::tryFrom('1')` finds the case) and
+    // throws `TypeError` for arrays and objects, so the type is checked first.
     if ($this->intBacked ? is_int($value) : is_string($value)) {
       $case = $this->enumClass::tryFrom($value);
 

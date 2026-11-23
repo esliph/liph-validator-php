@@ -18,7 +18,7 @@ abstract class BaseCoercibleSchemaTestCase extends BaseSchemaTestCase {
 
   abstract protected function createSchemaCoercible(): CoercibleSchema;
 
-  /** No String, `''` é uma string válida e não um valor ausente. */
+  /** In String, `''` is a valid string and not an absent value. */
   protected function blankCoercesToNull(): bool {
     return true;
   }

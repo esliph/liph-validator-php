@@ -53,7 +53,7 @@ final class ArraySchema extends CoercibleSchema {
         $result = $this->elementSchema->_parse($item, $itemPath);
 
         if (!$result->success) {
-          // Sem array_merge: ele copia a lista acumulada a cada filho e fica quadrático no total de issues.
+          // No array_merge: it copies the accumulated list for every child and becomes quadratic in the total number of issues.
           array_push($issues, ...$result->issues);
         } else {
           $parsedValue[] = $result->data;
@@ -82,7 +82,7 @@ final class ArraySchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function length(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'length');
@@ -97,7 +97,7 @@ final class ArraySchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function min(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'min');
@@ -112,7 +112,7 @@ final class ArraySchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function max(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'max');

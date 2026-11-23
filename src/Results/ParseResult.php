@@ -43,8 +43,8 @@ readonly final class ParseResult {
   }
 
   /**
-   * Falha ocorrida depois da checagem de tipo (regras ou filhos). O union usa
-   * a marca para relatar a opção que reconheceu o tipo do valor.
+   * Failure after the type check (rules or children). The union uses
+   * the flag to report the option that recognized the value's type.
    *
    * @internal
    * @param Issue[] $issues

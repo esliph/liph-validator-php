@@ -34,9 +34,9 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * Aplica os normalizadores na ordem de registro, entre a checagem de tipo e
-   * as regras. Nunca falha. Com UTF-8 inválido, os de caixa devolvem a string
-   * intacta, porque o mbstring trocaria os bytes inválidos.
+   * Applies the normalizers in registration order, between the type check and
+   * the rules. Never fails. With invalid UTF-8, the case ones return the string
+   * untouched, because mbstring would replace the invalid bytes.
    *
    * @param string[] $path
    */
@@ -54,7 +54,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function min(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'min');
@@ -69,7 +69,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function max(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'max');
@@ -102,7 +102,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * Formato 8-4-4-4-12 em hexa, sem conferir versão nem variante (aceita o nil).
+   * 8-4-4-4-12 hex format, without checking version or variant (accepts the nil UUID).
    */
   public function uuid(string|Closure|null $message = null): static {
     return $this->addRule(new Rule(
@@ -114,7 +114,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se o pattern não compilar (inclusive sem delimitadores)
+   * @throws InvalidArgumentException if the pattern does not compile (including one without delimiters)
    */
   public function regex(string $pattern, string|Closure|null $message = null): static {
     if (@preg_match($pattern, '') === false) {
@@ -170,7 +170,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   public function length(int $length, string|Closure|null $message = null): static {
     self::assertCount($length, 'length');
@@ -185,7 +185,7 @@ final class StringSchema extends CoercibleSchema {
   }
 
   public function lowercase(string|Closure|null $message = null): static {
-    // UTF-8 inválido já falha: o mbstring troca os bytes inválidos, e a comparação não bate.
+    // Invalid UTF-8 already fails: mbstring replaces the invalid bytes, and the comparison does not match.
     return $this->addRule(new Rule(
       name: 'lowercase',
       code: 'invalid_case',

@@ -10,8 +10,8 @@ use Esliph\Validator\Schemas\Primitive\IntegerSchema;
 use Esliph\Validator\Schemas\Primitive\NumberSchema;
 
 /**
- * O oráculo são as regexes `INT_PATTERN` e `FLOAT_PATTERN` do NumberSchema, copiadas aqui:
- * uma troca da coerção no src/ é comparada contra elas.
+ * The oracle is the `INT_PATTERN` and `FLOAT_PATTERN` regexes of NumberSchema, copied here:
+ * a change to the coercion in src/ is compared against them.
  */
 class NumericCoercionEquivalenceTest extends TestCase {
 
@@ -185,8 +185,8 @@ class NumericCoercionEquivalenceTest extends TestCase {
   }
 
   /**
-   * Recebe uma string que casa com INT_PATTERN. O int vale só se a volta para string
-   * dá a forma canônica: sem zeros à esquerda e com `-` só para negativo não zero.
+   * Receives a string that matches INT_PATTERN. The int is valid only if converting back to string
+   * gives the canonical form: no leading zeros and with `-` only for a non-zero negative.
    */
   private static function exactInt(string $trimmed): ?int {
     $digits = ltrim(ltrim($trimmed, '+-'), '0');

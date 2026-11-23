@@ -9,8 +9,8 @@ use Esliph\Validator\Schemas\Schema;
 use Esliph\Validator\V;
 
 /**
- * O oráculo é o mbstring: `mb_check_encoding` mais `mb_strlen`, que é como o
- * StringSchema conta; um atalho por bytes precisa dar o mesmo resultado.
+ * The oracle is mbstring: `mb_check_encoding` plus `mb_strlen`, which is how
+ * StringSchema counts; a byte-based shortcut must give the same result.
  */
 class StringCountEquivalenceTest extends TestCase {
 
@@ -43,7 +43,7 @@ class StringCountEquivalenceTest extends TestCase {
 
   /**
    * @param Closure(int): Schema $build
-   * @param Closure(int, int): bool $holds recebe o tamanho em caracteres e o limite
+   * @param Closure(int, int): bool $holds receives the length in characters and the limit
    * @return list<array{string, int, bool, bool}>
    */
   private static function mismatches(Closure $build, Closure $holds): array {

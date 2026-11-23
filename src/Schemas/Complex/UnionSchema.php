@@ -15,7 +15,7 @@ final class UnionSchema extends Schema {
   /**
    * @param Schema[] $schemas
    *
-   * @throws InvalidArgumentException com menos de 2 opções
+   * @throws InvalidArgumentException with fewer than 2 options
    */
   public function __construct(array $schemas = []) {
     if (count($schemas) < 2) {
@@ -38,8 +38,8 @@ final class UnionSchema extends Schema {
   }
 
   /**
-   * O `null` segue para as opções, e cada uma decide com o próprio `optional()`,
-   * default ou `V::null()`.
+   * `null` goes on to the options, and each one decides with its own `optional()`,
+   * default or `V::null()`.
    */
   #[Override]
   protected function acceptsNull(): bool {
@@ -47,9 +47,9 @@ final class UnionSchema extends Schema {
   }
 
   /**
-   * A primeira opção que passa vence. Se nenhuma passa: `required` para `null`;
-   * senão o resultado da primeira opção suja, que reconheceu o tipo e falhou numa
-   * regra ou num filho; senão uma única `invalid_union`.
+   * The first option that passes wins. If none passes: `required` for `null`;
+   * otherwise the result of the first dirty option, which recognized the type and failed on a
+   * rule or a child; otherwise a single `invalid_union`.
    */
   #[Override]
   protected function parseType(mixed $value, array $path, mixed $input): ParseResult {

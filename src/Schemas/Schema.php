@@ -24,9 +24,9 @@ abstract class Schema {
   protected array $messages = [];
 
   /**
-   * @param string[] $path Chaves da raiz até o valor atual; vira o `Issue::$path` de
-   *                       toda issue. `safeParse()` começa com `[]`, e cada schema
-   *                       composto acrescenta a chave do filho ao chamá-lo.
+   * @param string[] $path Keys from the root to the current value; becomes the `Issue::$path` of
+   *                       every issue. `safeParse()` starts with `[]`, and each composite
+   *                       schema adds the child's key when calling it.
    */
   protected function _parse(mixed $value, array $path = []): ParseResult {
     $input = $value;
@@ -64,7 +64,7 @@ abstract class Schema {
       return ParseResult::dirty($issues);
     }
 
-    // As regras não mudam o valor: sem transform, o ok do validateType já é o resultado final.
+    // The rules do not change the value: without a transform, validateType's ok is already the final result.
     if ($this->transforms === []) {
       return $childResult;
     }
@@ -75,33 +75,33 @@ abstract class Schema {
   }
 
   /**
-   * Sem default nem `optional`, o `null` só segue para o `parseType` quando o
-   * schema o aceita como valor.
+   * Without a default or `optional`, `null` only goes on to `parseType` when the
+   * schema accepts it as a value.
    */
   protected function acceptsNull(): bool {
     return false;
   }
 
   /**
-   * Passo 0 do `_parse`, só com `coerce()` e valor não nulo. Devolve o valor
-   * convertido, `null` (campo em branco) ou o próprio original quando não
-   * converte. Nunca lança nem cria issue.
+   * Step 0 of `_parse`, only with `coerce()` and a non-null value. Returns the
+   * converted value, `null` (blank field) or the original itself when it does not
+   * convert. Never throws nor creates an issue.
    */
   protected function coerceInput(mixed $value): mixed {
     return $value;
   }
 
   /**
-   * `$input` é o valor original, antes da coerção; é ele que vai para as issues.
+   * `$input` is the original value, before coercion; it is the one that goes into the issues.
    *
    * @param string[] $path
    */
   abstract protected function parseType(mixed $value, array $path, mixed $input): ParseResult;
 
   /**
-   * Gancho entre a checagem de tipo e as regras; a saída alimenta as regras.
-   * Os compostos validam os filhos aqui, e o String aplica os normalizadores.
-   * Uma falha vira `dirty`.
+   * Hook between the type check and the rules; its output feeds the rules.
+   * Composites validate the children here, and String applies the normalizers.
+   * A failure becomes `dirty`.
    *
    * @param string[] $path
    */
@@ -130,10 +130,10 @@ abstract class Schema {
   }
 
   /**
-   * Só falhas de validação viram ValidatorException. Exceções lançadas por check
-   * de regra, Closure de mensagem, transform ou default se propagam sem tratamento.
+   * Only validation failures become ValidatorException. Exceptions thrown by a rule check,
+   * message Closure, transform or default propagate untouched.
    *
-   * @throws ValidatorException se o valor não passar na validação
+   * @throws ValidatorException if the value fails validation
    */
   public function parse(mixed $value): mixed {
     $result = $this->safeParse($value);
@@ -146,17 +146,17 @@ abstract class Schema {
   }
 
   /**
-   * Só falhas de validação viram `false`. Exceções lançadas por check de regra,
-   * Closure de mensagem, transform ou default se propagam sem tratamento.
+   * Only validation failures become `false`. Exceptions thrown by a rule check,
+   * message Closure, transform or default propagate untouched.
    */
   public function isValid(mixed $value): bool {
     return $this->safeParse($value)->success;
   }
 
   /**
-   * Só falhas de validação viram ParseResult com issues. Exceções lançadas por
-   * check de regra, Closure de mensagem, transform ou default se propagam sem
-   * tratamento.
+   * Only validation failures become a ParseResult with issues. Exceptions thrown by
+   * a rule check, message Closure, transform or default propagate
+   * untouched.
    */
   public function safeParse(mixed $value): ParseResult {
     return $this->_parse($value, []);
@@ -167,8 +167,8 @@ abstract class Schema {
   }
 
   /**
-   * O check recebe só o valor, então aceita callables nativos de um argumento
-   * (`is_numeric(...)`). A Closure de mensagem continua recebendo `($value, [])`.
+   * The check receives only the value, so it accepts native one-argument callables
+   * (`is_numeric(...)`). The message Closure still receives `($value, [])`.
    *
    * @param Closure(mixed): mixed $callable
    */
@@ -204,8 +204,8 @@ abstract class Schema {
   }
 
   /**
-   * Um default objeto é clonado a cada uso para que a mutação feita por quem
-   * recebe o resultado não vaze para o próximo parse.
+   * An object default is cloned on every use so that a mutation made by whoever
+   * receives the result does not leak into the next parse.
    */
   private function resolveDefault(): mixed {
     if ($this->default instanceof Closure) {
@@ -220,7 +220,7 @@ abstract class Schema {
   }
 
   /**
-   * Case de enum é singleton e o PHP proíbe cloná-lo.
+   * An enum case is a singleton and PHP forbids cloning it.
    *
    * @phpstan-assert-if-true object $value
    */
@@ -244,9 +244,9 @@ abstract class Schema {
   }
 
   /**
-   * Troca, por código, as mensagens das issues que o próprio schema emite. Uma
-   * string é texto literal; uma Closure recebe o valor original de entrada e os
-   * params do código. As mensagens das `Rule`s ficam fora deste mapa.
+   * Replaces, by code, the messages of the issues the schema emits itself. A
+   * string is literal text; a Closure receives the original input value and the
+   * code's params. The messages of `Rule`s are left out of this map.
    *
    * @param array<string, string|Closure(mixed, array<string, mixed>): string> $messages
    */
@@ -270,16 +270,16 @@ abstract class Schema {
   }
 
   /**
-   * Recebe `mixed` porque o tipo do PHPDoc de `messages()` não vale em runtime
-   * para quem chama sem análise estática.
+   * Takes `mixed` because the PHPDoc type of `messages()` does not hold at runtime
+   * for callers without static analysis.
    */
   private static function isMessage(mixed $message): bool {
     return is_string($message) || $message instanceof Closure;
   }
 
   /**
-   * Códigos que a classe emite por conta própria. Cada subclasse estende ou
-   * redefine a lista, que só contém o que ela pode emitir.
+   * Codes the class emits on its own. Each subclass extends or
+   * redefines the list, which holds only what it can emit.
    *
    * @return list<string>
    */
@@ -288,8 +288,8 @@ abstract class Schema {
   }
 
   /**
-   * Ponto único de criação das issues de schema. `$value` é o valor original de
-   * entrada, antes da coerção.
+   * Single point where schema issues are created. `$value` is the original input
+   * value, before coercion.
    *
    * @param string[] $path
    * @param array<string, mixed> $params
@@ -305,13 +305,13 @@ abstract class Schema {
   }
 
   /**
-   * Porta obrigatória de todo `invalid_type` no padrão "Expected X, received Y".
-   * `$input` é o valor original, antes da coerção; `received` é
-   * `get_debug_type($input)` (`int`, `float`, `bool`, `null`, nome de classe,
-   * `resource (stream)`), e `$receivedText` só troca o texto padrão.
+   * Mandatory gate for every `invalid_type` in the "Expected X, received Y" pattern.
+   * `$input` is the original value, before coercion; `received` is
+   * `get_debug_type($input)` (`int`, `float`, `bool`, `null`, class name,
+   * `resource (stream)`), and `$receivedText` only replaces the default text.
    *
-   * Uma string customizada não paga `get_debug_type`, e sem customização os
-   * params não são montados. A Closure continua sendo resolvida só em `issue()`.
+   * A custom string does not pay for `get_debug_type`, and without customization the
+   * params are not built. The Closure is still resolved only in `issue()`.
    *
    * @param string[] $path
    */
@@ -333,7 +333,7 @@ abstract class Schema {
   }
 
   /**
-   * @throws InvalidArgumentException se a contagem for negativa
+   * @throws InvalidArgumentException if the count is negative
    */
   protected static function assertCount(int $n, string $method): void {
     if ($n < 0) {
@@ -342,8 +342,8 @@ abstract class Schema {
   }
 
   /**
-   * Representação de um valor esperado nas mensagens: o case de enum sai como
-   * `Classe::Case`, e o resto como `var_export`.
+   * Representation of an expected value in messages: an enum case comes out as
+   * `Class::Case`, and the rest as `var_export`.
    */
   protected static function formatValue(mixed $value): string {
     if ($value instanceof UnitEnum) {
