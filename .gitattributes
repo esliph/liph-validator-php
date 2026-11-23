@@ -1,2 +1,29 @@
 # Shell scripts must keep LF: with CRLF, bash fails on `$'\r'` and hooks fail open.
 *.sh text eol=lf
+
+# Files the Packagist archive must not carry: it holds only src/, composer.json, LICENSE, README.md and CHANGELOG.md.
+# GitHub reads the community files from the repository, so they stay out of the archive too.
+/tests export-ignore
+/benchmarks export-ignore
+/docker export-ignore
+/docs export-ignore
+/.github export-ignore
+/.claude export-ignore
+/Makefile export-ignore
+/docker-compose.yml export-ignore
+/Dockerfile export-ignore
+/phpunit.xml export-ignore
+/phpstan.neon export-ignore
+/phpbench.json export-ignore
+/composer.lock export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/CODE_OF_CONDUCT.md export-ignore
+/SECURITY.md export-ignore
+/CONTRIBUTING.md export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+
+# The workflows parse these files, so a Windows checkout must not commit CRLF into them.
+*.md text eol=lf
+*.yml text eol=lf

@@ -3,6 +3,7 @@
   "description": "A Zod-inspired data validation library for PHP",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://github.com/esliph/liph-validator-php",
   "keywords": [
     "validation",
     "schema",
@@ -14,6 +15,10 @@
       "email": "danrsaquetti@gmail.com"
     }
   ],
+  "support": {
+    "issues": "https://github.com/esliph/liph-validator-php/issues",
+    "source": "https://github.com/esliph/liph-validator-php"
+  },
   "scripts": {
     "test": "vendor/bin/phpunit",
     "analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
@@ -42,6 +47,9 @@
     "phpunit/phpunit": "^11.5",
     "phpstan/phpstan": "^2.3",
     "phpbench/phpbench": "^1.7"
+  },
+  "config": {
+    "sort-packages": true
   },
   "minimum-stability": "stable",
   "prefer-stable": true

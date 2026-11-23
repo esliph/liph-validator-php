@@ -76,4 +76,4 @@ Composite schemas call `$child->_parse($v, [...$path, $key])` directly on their 
 
 - 2-space indentation, opening brace on the same line, blank line after the class opening.
 - Overridden methods marked with `#[Override]`; `Issue`/`Rule` constructors called with named arguments.
-- Commits in Brazilian Portuguese (pt-BR) using the `type: Description` format (types used: `feat`, `fix`, `refactor`, `test`, `config`, `build`, `remove`).
+- Commits in English using the `type: Description` format (types used: `feat`, `fix`, `refactor`, `test`, `config`, `build`, `remove`).
