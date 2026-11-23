@@ -111,14 +111,14 @@ class NullSchemaTest extends BaseSchemaTestCase {
     $schema = (new NullSchema())->messages([
       'invalid_type' => function (mixed $value, array $params) use (&$received): string {
         $received = [$value, $params];
-        return 'só null';
+        return 'only null';
       },
     ]);
 
     $result = $schema->safeParse(5);
 
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('só null', $result->issues[0]->message);
+    $this->assertSame('only null', $result->issues[0]->message);
     $this->assertSame([5, ['expected' => 'null', 'received' => 'int']], $received);
   }
 

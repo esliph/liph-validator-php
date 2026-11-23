@@ -159,10 +159,10 @@ class LiteralSchemaTest extends BaseSchemaTestCase {
   }
 
   public function test_messages_WithInvalidLiteralString_ShouldUseCustomMessage(): void {
-    $result = (new LiteralSchema('active'))->messages(['invalid_literal' => 'Só active'])->safeParse('b');
+    $result = (new LiteralSchema('active'))->messages(['invalid_literal' => 'Only active'])->safeParse('b');
 
     $this->assertSame('invalid_literal', $result->issues[0]->code);
-    $this->assertSame('Só active', $result->issues[0]->message);
+    $this->assertSame('Only active', $result->issues[0]->message);
   }
 
   public function test_messages_WithInvalidLiteralClosure_ShouldReceiveValueAndLiteral(): void {

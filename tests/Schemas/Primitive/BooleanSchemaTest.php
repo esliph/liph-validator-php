@@ -924,14 +924,14 @@ class BooleanSchemaTest extends BaseCoercibleSchemaTestCase {
     $schema = (new BooleanSchema())->coerce()->messages([
       'invalid_type' => function (mixed $value, array $params) use (&$received): string {
         $received = [$value, $params];
-        return 'sim ou não';
+        return 'yes or no';
       },
     ]);
 
     $result = $schema->safeParse('talvez');
 
     $this->assertSame('invalid_type', $result->issues[0]->code);
-    $this->assertSame('sim ou não', $result->issues[0]->message);
+    $this->assertSame('yes or no', $result->issues[0]->message);
     $this->assertSame(['talvez', ['expected' => 'bool', 'received' => 'string']], $received);
   }
 

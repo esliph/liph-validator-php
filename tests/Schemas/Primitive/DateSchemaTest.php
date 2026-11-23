@@ -1079,12 +1079,12 @@ class DateSchemaTest extends BaseCoercibleSchemaTestCase {
   }
 
   public function test_messages_WithInvalidDateString_ShouldUseCustomMessage(): void {
-    $schema = (new DateSchema())->coerce()->format('Y-m-d')->messages(['invalid_date' => 'Data inválida']);
+    $schema = (new DateSchema())->coerce()->format('Y-m-d')->messages(['invalid_date' => 'Invalid date']);
 
     $result = $schema->safeParse('2024-02-30');
 
     $this->assertSame('invalid_date', $result->issues[0]->code);
-    $this->assertSame('Data inválida', $result->issues[0]->message);
+    $this->assertSame('Invalid date', $result->issues[0]->message);
   }
 
   public function test_messages_WithInvalidDateClosureAndFormat_ShouldReceiveValueAndFormat(): void {

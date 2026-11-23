@@ -911,14 +911,14 @@ class UnionSchemaTest extends BaseSchemaTestCase {
 
   public function test_messages_WithDirtyMember_ShouldReturnMemberCustomMessage(): void {
     $schema = V::union(
-      V::object(['a' => V::int()->messages(['invalid_type' => 'a inválido'])]),
+      V::object(['a' => V::int()->messages(['invalid_type' => 'a is invalid'])]),
       V::int()
     )->messages(['invalid_union' => 'nenhuma']);
 
     $result = $schema->safeParse((object) ['a' => 'x']);
 
     $this->assertCount(1, $result->issues);
-    $this->assertSame('a inválido', $result->issues[0]->message);
+    $this->assertSame('a is invalid', $result->issues[0]->message);
     $this->assertSame(['a'], $result->issues[0]->path);
   }
 

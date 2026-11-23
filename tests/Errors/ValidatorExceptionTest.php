@@ -409,7 +409,7 @@ class ValidatorExceptionTest extends TestCase {
   }
 
   public function test_toJson_WithUnicodeCharacters_ShouldPreserveUnicode(): void {
-    $issue = new Issue(['field'], 'Campo obrigatório: 日本語 🚀', 'UNICODE_001');
+    $issue = new Issue(['field'], 'Required field: 日本語 🚀', 'UNICODE_001');
 
     $exception = new ValidatorException([$issue]);
     $json = $exception->toJson();
@@ -418,7 +418,7 @@ class ValidatorExceptionTest extends TestCase {
     $this->assertStringContainsString('🚀', $json);
 
     $decoded = json_decode($json, true);
-    $this->assertSame('Campo obrigatório: 日本語 🚀', $decoded[0]['message']);
+    $this->assertSame('Required field: 日本語 🚀', $decoded[0]['message']);
   }
 
   public function test_toJson_WithSpecialJsonCharacters_ShouldEscapeCorrectly(): void {

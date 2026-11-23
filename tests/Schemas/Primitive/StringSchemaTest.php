@@ -754,9 +754,9 @@ class StringSchemaTest extends BaseCoercibleSchemaTestCase {
   }
 
   public function test_uuid_WithCustomMessage_ShouldUseCustomMessage(): void {
-    $result = (new StringSchema())->uuid('UUID inválido')->safeParse('x');
+    $result = (new StringSchema())->uuid('Invalid UUID')->safeParse('x');
 
-    $this->assertSame('UUID inválido', $result->issues[0]->message);
+    $this->assertSame('Invalid UUID', $result->issues[0]->message);
   }
 
   public function test_uuid_WithClosureMessage_ShouldReceiveValue(): void {

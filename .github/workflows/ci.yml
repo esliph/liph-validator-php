@@ -68,6 +68,7 @@ jobs:
       - run: composer run analyse
 
   # Always runs and succeeds outside PRs to master: a skipped required check is easy to misread.
+  # Advisory, not a lock: a PR runs its own copy of this workflow and script, so every PR still needs review.
   branch-guard:
     name: branch-guard
     runs-on: ubuntu-latest
