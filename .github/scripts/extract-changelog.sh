@@ -12,6 +12,8 @@ body=$(awk -v version="$version" '
   { sub(/\r$/, "") }
   index($0, "## [" version "]") == 1 { inside = 1; next }
   inside && index($0, "## [") == 1 { exit }
+  # Keep a Changelog puts the link references after the last section.
+  inside && $0 ~ /^\[[^]]+\]: / { exit }
   inside { lines[++n] = $0 }
   END {
     first = 1
@@ -22,7 +24,8 @@ body=$(awk -v version="$version" '
   }
 ' "$file")
 
-if [ -z "$body" ]; then
+# A section holding only headings has nothing to publish.
+if ! grep -qv -e '^[[:space:]]*$' -e '^#' <<< "$body"; then
   echo "::error::$file has no section with content for version $version." >&2
   exit 1
 fi
