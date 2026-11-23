@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # edited: retargeting a PR to master must run branch-guard again.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [develop, master]
 
