@@ -152,6 +152,11 @@ echo V::string()->messages(['invalid_type' => 'Must be text'])->safeParse(5)->is
 
 Every `Issue` has a `path`, a `message` and a `code` such as `required`, `invalid_type`, `too_small`, `too_big`, `invalid_format`, `invalid_union` or `custom`. Exceptions thrown by your own `refine`, `transform` or message closures are not caught.
 
+## Documentation
+
+- [Guide](https://github.com/esliph/liph-validator-php/blob/master/docs/guide/README.md): a tutorial, how-to pages and a reference of every method and issue code.
+- [Architecture](https://github.com/esliph/liph-validator-php/blob/master/docs/architecture/README.md): how the library is built and why, for contributors.
+
 ## Contributing
 
 Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it explains the branches, the commit format and how to run the checks. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).

@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Release workflow: a `vX.Y.Z` tag publishes a GitHub Release with the notes of its changelog section.
 - `CONTRIBUTING.md`, issue forms and a pull request template.
 - A PHPStan baseline for errors that already existed.
+- Repository documentation: a usage guide in `docs/guide/` and architecture notes in `docs/architecture/`.
 
 ### Changed
 

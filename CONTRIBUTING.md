@@ -61,7 +61,7 @@ CI runs the suite on PHP 8.3, 8.4 and 8.5, and PHPStan on 8.3. A pull request ne
 
 ## Tests
 
-Name tests `test_<method>_<Condition>_Should<Result>`. A new schema extends the matching base test case, so it inherits the common tests. `AGENTS.md` ("Tests") lists the base classes and when to use each one.
+Name tests `test_<method>_<Condition>_Should<Result>`. A new schema extends the matching base test case, so it inherits the common tests. [`docs/architecture/testing.md`](docs/architecture/testing.md) lists the base classes and when to use each one. Before you change `src/`, read [`docs/architecture/README.md`](docs/architecture/README.md).
 
 Every behavior change comes with a test, and a bug fix comes with a test that fails before the fix.
 
