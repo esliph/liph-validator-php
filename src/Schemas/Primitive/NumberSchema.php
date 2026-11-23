@@ -83,8 +83,11 @@ class NumberSchema extends CoercibleSchema {
    * @param string[] $path
    */
   protected function nonFiniteIssue(float $value, mixed $input, array $path): ParseResult {
+    // Not a string cast: PHP 8.5 raises a warning when NAN is cast to string.
+    $text = is_nan($value) ? 'NAN' : ($value > 0 ? 'INF' : '-INF');
+
     return ParseResult::fail(
-      $this->issue('not_finite', "Expected finite number, received {$value}", $input, $path)
+      $this->issue('not_finite', "Expected finite number, received {$text}", $input, $path)
     );
   }
 

@@ -447,6 +447,38 @@ abstract class NumberSchemaTestCase extends BaseCoercibleSchemaTestCase {
     $this->assertSame('not_finite', $result->issues[0]->code);
   }
 
+  /**
+   * @return array<string, array{float, string}>
+   */
+  public static function provideNonFiniteValueTexts(): array {
+    return [
+      'infinity' => [INF, 'INF'],
+      'negative_infinity' => [-INF, '-INF'],
+      'nan' => [NAN, 'NAN'],
+    ];
+  }
+
+  // PHP 8.5 raises a warning when NAN is cast to string, so the message must not depend on that cast.
+  #[DataProvider('provideNonFiniteValueTexts')]
+  public function test_parseType_WithNonFiniteValue_ShouldReportTheValueWithoutRaisingWarnings(float $value, string $text): void {
+    $warnings = [];
+
+    set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+      $warnings[] = $message;
+
+      return true;
+    });
+
+    try {
+      $result = $this->createNumberSchema()->safeParse($value);
+    } finally {
+      restore_error_handler();
+    }
+
+    $this->assertSame([], $warnings);
+    $this->assertSame("Expected finite number, received {$text}", $result->issues[0]->message);
+  }
+
   #[DataProvider('provideNonFiniteValues')]
   public function test_parseType_WithNonFiniteValueAndCoercion_ShouldFailWithNotFinite(float $value): void {
     $result = $this->createNumberSchema()->coerce()->safeParse($value);
